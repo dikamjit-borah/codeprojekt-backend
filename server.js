@@ -2,9 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
-const { requestIdMiddleware, responseFormatter } = require('./middleware/requestHandler');
+const { requestIdMiddleware, responseFormatter } = require('./middlewares/requestHandler');
 const logger = require('./utils/logger');
 
+const productsRoutes = require('./routes/products');
 const healthRoute = require('./routes/health');
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use(requestIdMiddleware);
 app.use(responseFormatter);
 
 // Routes
+app.use('/api/products', productsRoutes);
 app.use('/health', healthRoute);
 
 // Error handling middleware
