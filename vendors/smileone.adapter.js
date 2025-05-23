@@ -1,6 +1,7 @@
 const config = require("config");
 const axios = require("axios");
 const md5 = require("crypto-js/md5");
+const { get } = require("lodash");
 
 class SmileOneAdapter {
   constructor() {
@@ -52,7 +53,8 @@ class SmileOneAdapter {
   }
 
   async fetchProductSPUs(product) {
-    return await this.call("/productlist", { product });
+    const response = await this.call("/productlist", { product });
+    return get(response, "data.product", []);
   }
 
   async placeOrder(productid, userid, zoneid) {
