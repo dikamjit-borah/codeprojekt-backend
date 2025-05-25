@@ -10,9 +10,6 @@ const {
 } = require("./middlewares/requestHandler");
 const logger = require("./utils/logger");
 
-const productsRoutes = require("./routes/products");
-const healthRoute = require("./routes/health");
-
 dotenv.config();
 
 const app = express();
@@ -32,8 +29,8 @@ app.use(requestIdMiddleware);
 app.use(responseFormatter);
 
 // Routes
-app.use("/api/products", productsRoutes);
-app.use("/health", healthRoute);
+app.use("/api/product", require("./routes/product"));
+app.use("/health", require("./routes/health"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
