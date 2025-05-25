@@ -2,11 +2,12 @@ const config = require("config");
 const axios = require("axios");
 const md5 = require("crypto-js/md5");
 const { get } = require("lodash");
+const smileoneConfig = config.get("smileone");
 
 class SmileOneAdapter {
   constructor() {
-    this.baseURL = config.get("smileone.baseURL");
-    this.secretKey = config.get("smileone.secretKey");
+    this.baseURL = smileoneConfig.baseURL;
+    this.secretKey = smileoneConfig.secretKey;
   }
   generateSignature(payload) {
     const sortedKeys = Object.keys(payload).sort();
@@ -21,8 +22,8 @@ class SmileOneAdapter {
 
   async call(endpoint, body = {}, method = "POST") {
     const payload = {
-      uid: config.get("smileone.uid"),
-      email: config.get("smileone.email"),
+      uid: smileoneConfig.uid,
+      email: smileoneConfig.email,
       time: Math.floor(Date.now() / 1000),
       ...body,
     };
