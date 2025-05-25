@@ -17,6 +17,10 @@ class RuleEngine {
         if (typeof factValue !== "string") return false;
         return factValue.toLowerCase().includes(jsonValue.toLowerCase());
       });
+      this.engine.addOperator("notIncludes", (factValue, jsonValue) => {
+        if (typeof factValue !== "string") return false;
+        return !factValue.toLowerCase().includes(jsonValue.toLowerCase());
+      });
       this.operatorsAdded = true;
     }
     return this.engine;
