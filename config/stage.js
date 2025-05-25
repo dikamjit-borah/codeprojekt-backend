@@ -6,4 +6,5 @@ module.exports = {
     secretKey: process.env.SMILEONE_SECRET_KEY,
   },
   brazilianRealToINR: parseFloat(process.env.BRAZILIAN_REAL_TO_INR),
+  brazilianRealToSmilecoin: parseFloat(process.env.BRAZILIAN_REAL_TO_SMILECOIN),
 };
