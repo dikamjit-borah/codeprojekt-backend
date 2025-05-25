@@ -1,3 +1,4 @@
+const config = require("config");
 const { evaluateRules } = require("../utils/ruleEngine");
 const smileOneAdapter = require("../vendors/smileone.adapter");
 
@@ -20,17 +21,22 @@ async function fetchConfigsForCategories() {
   return [
     {
       conditions: {
-        all: [
+        any: [
           {
             fact: "name",
             operator: "includes",
-            value: "Diamond",
+            value: "Passe",
+          },
+          {
+            fact: "name",
+            operator: "includes",
+            value: "Passagem",
           },
         ],
       },
       event: {
         type: "category",
-        params: { category: "Basic Pack" },
+        params: { category: "Pass" },
       },
     },
 
@@ -57,22 +63,22 @@ async function fetchConfigsForCategories() {
 
     {
       conditions: {
-        any: [
+        all: [
           {
             fact: "name",
-            operator: "includes",
-            value: "Passe",
+            operator: "notIncludes",
+            value: "&",
           },
           {
             fact: "name",
             operator: "includes",
-            value: "Passagem",
+            value: "Diamond",
           },
         ],
       },
       event: {
         type: "category",
-        params: { category: "Pass" },
+        params: { category: "Basic Pack" },
       },
     },
   ];
@@ -98,6 +104,11 @@ async function categorizeProducts(products, rulesConfig) {
       );
       return {
         ...originalItem,
+        price_inr: parseFloat(
+          (
+            parseFloat(originalItem.price) * config.get("brazilianRealToINR")
+          ).toFixed(2)
+        ),
         category: categoryEvent
           ? categoryEvent.params.category
           : "Uncategorized",
