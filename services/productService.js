@@ -1,10 +1,10 @@
 const config = require("config");
 const { evaluateRules } = require("../utils/ruleEngine");
-const smileOneAdapter = require("../vendors/smileone.adapter");
+const smileoneAdapter = require("../vendors/smileone.adapter");
 
 const getSPUsForProduct = async (product) => {
   try {
-    const productSPUs = await smileOneAdapter.fetchProductSPUs(product);
+    const productSPUs = await smileoneAdapter.fetchProductSPUs(product);
     if (!productSPUs || productSPUs.length === 0) {
       throw new Error("No SPUs found for the given product");
     }

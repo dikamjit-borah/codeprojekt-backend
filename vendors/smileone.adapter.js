@@ -2,9 +2,10 @@ const config = require("config");
 const axios = require("axios");
 const md5 = require("crypto-js/md5");
 const { get } = require("lodash");
+const logger = require("../utils/logger");
 const smileoneConfig = config.get("smileone");
 
-class SmileOneAdapter {
+class SmileoneAdapter {
   constructor() {
     this.baseURL = smileoneConfig.baseURL;
     this.secretKey = smileoneConfig.secretKey;
@@ -49,8 +50,9 @@ class SmileOneAdapter {
 
   // === Vendor-specific endpoints ===
 
-  async getSmileCoinBalance() {
-    return await this.call("/querypoints");
+  async fetchSmilecoinBalance() {
+    const response = await this.call("/querypoints");
+    return get(response, "smile_points", 0);
   }
 
   async fetchProductSPUs(product) {
@@ -59,14 +61,28 @@ class SmileOneAdapter {
   }
 
   async placeOrder(productid, userid, zoneid) {
-    const payload = {
-      productid,
-      userid,
-      zoneid,
-    };
-    return await this.call("/createorder", payload);
+    try {
+      const payload = {
+        productid,
+        userid,
+        zoneid,
+      };
+      const response = await this.call("/createorder", payload);
+      return response;
+    } catch (error) {
+      logger.error(
+        {
+          error: error.message,
+          productid,
+          userid,
+          zoneid,
+        },
+        "Error placing order with Smileone"
+      );
+    }
+    throw new Error("Failed to place order with Smileone");
   }
 }
 
-const smileOneAdapter = new SmileOneAdapter();
-module.exports = smileOneAdapter;
+const smileoneAdapter = new SmileoneAdapter();
+module.exports = smileoneAdapter;
