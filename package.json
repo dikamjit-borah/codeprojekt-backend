@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "stage": "SET NODE_ENV=stage&&nodemon server.js",
+    "stage-linux": "NODE_ENV=stage nodemon server.js" 
   },
   "dependencies": {
     "axios": "^1.9.0",
