@@ -1,15 +1,15 @@
-const pino = require('pino');
+const pino = require("pino");
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "debug",
   transport: {
-    target: 'pino-pretty',
+    target: "pino-pretty",
     options: {
       colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname'
-    }
-  }
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+    },
+  },
 });
 
-module.exports = logger; 
+module.exports = logger;

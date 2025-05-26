@@ -1,23 +1,16 @@
-const productService = require('../services/productService');
+const productService = require("../services/productService");
 
-const getSPUsForProduct = async (req, res) => {
+const getSPUsForProduct = async (req, res, next) => {
   try {
     const product = req.params.product;
     const result = await productService.getSPUsForProduct(product);
-    
-    res.json({
-      status: 200,
-      data: result
-    });
+
+    res.success(200, "SPUs fetched successfully", result);
   } catch (error) {
-    console.error('Error in getProductList controller:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch product list'
-    });
+    next(error);
   }
 };
 
 module.exports = {
-  getSPUsForProduct
-}; 
+  getSPUsForProduct,
+};

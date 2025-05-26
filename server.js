@@ -40,19 +40,18 @@ app.use((err, req, res, next) => {
       requestId: req.requestId,
       error: err.message,
       stack: err.stack,
-      path: req.path,
       method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
     },
-    "Error occurred"
+    "ERROR occurred"
   );
 
-  res.status(500).json({
-    success: false,
-    error: "Something went wrong!",
-    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  res.status(err.status || 500).json({
+    status: err.status || 500,
+    message: err.message || "Internal Server Error",
   });
 });
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info(
