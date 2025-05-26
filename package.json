@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "stage": "SET NODE_ENV=stage&&nodemon server.js",
-    "stage-linux": "NODE_ENV=stage nodemon server.js" 
+    "stage-linux": "NODE_ENV=stage nodemon server.js"
   },
   "dependencies": {
     "axios": "^1.9.0",
@@ -17,6 +17,7 @@
     "express": "^4.18.2",
     "firebase-admin": "^11.11.0",
     "helmet": "^7.1.0",
+    "http-errors": "^2.0.0",
     "json-rules-engine": "^7.3.1",
     "lodash": "^4.17.21",
     "pino": "^8.17.2",

@@ -1,20 +1,17 @@
 const config = require("config");
 const { evaluateRules } = require("../utils/ruleEngine");
 const smileoneAdapter = require("../vendors/smileone.adapter");
+const createHttpError = require("http-errors");
 
 const getSPUsForProduct = async (product) => {
-  try {
-    const productSPUs = await smileoneAdapter.fetchProductSPUs(product);
-    if (!productSPUs || productSPUs.length === 0) {
-      throw new Error("No SPUs found for the given product");
-    }
-    const configs = await fetchConfigsForCategories();
-    const categorizedProducts = await categorizeProducts(productSPUs, configs);
-
-    return categorizedProducts;
-  } catch (error) {
-    throw new Error(`Error fetching product list: ${error.message}`);
+  const productSPUs = await smileoneAdapter.fetchProductSPUs(product);
+  if (!productSPUs || productSPUs.length === 0) {
+    throw createHttpError(404, "No SPUs found for the given product");
   }
+  const configs = await fetchConfigsForCategories();
+  const categorizedProducts = await categorizeProducts(productSPUs, configs);
+
+  return categorizedProducts;
 };
 
 async function fetchConfigsForCategories() {

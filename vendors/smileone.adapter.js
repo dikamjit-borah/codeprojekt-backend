@@ -3,6 +3,7 @@ const axios = require("axios");
 const md5 = require("crypto-js/md5");
 const { get } = require("lodash");
 const logger = require("../utils/logger");
+const createHttpError = require("http-errors");
 const smileoneConfig = config.get("smileone");
 
 class SmileoneAdapter {
@@ -43,8 +44,17 @@ class SmileoneAdapter {
 
       return response.data;
     } catch (error) {
-      console.error(`Vendor API call failed: ${error.message}`);
-      throw error;
+      logger.error(
+        {
+          payload: signedPayload,
+          error: error.message,
+        },
+        "Error calling Smileone API"
+      );
+      throw createHttpError(
+        500,
+        `Error calling Smileone API: ${error.message}`
+      );
     }
   }
 
@@ -61,26 +71,13 @@ class SmileoneAdapter {
   }
 
   async placeOrder(productid, userid, zoneid) {
-    try {
-      const payload = {
-        productid,
-        userid,
-        zoneid,
-      };
-      const response = await this.call("/createorder", payload);
-      return response;
-    } catch (error) {
-      logger.error(
-        {
-          error: error.message,
-          productid,
-          userid,
-          zoneid,
-        },
-        "Error placing order with Smileone"
-      );
-    }
-    throw new Error("Failed to place order with Smileone");
+    const payload = {
+      productid,
+      userid,
+      zoneid,
+    };
+    const response = await this.call("/createorder", payload);
+    return response;
   }
 }
 
