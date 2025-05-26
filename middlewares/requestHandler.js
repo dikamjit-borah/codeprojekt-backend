@@ -26,20 +26,25 @@ const requestIdMiddleware = (req, res, next) => {
 };
 
 const responseFormatter = (req, res, next) => {
-  // Store the original json method
-  const originalJson = res.json;
+  req._startTime = Date.now();
 
-  // Override the json method
-  res.json = function (data) {
-    const formattedResponse = {
+  res.success = function (statusOrData, message, data) {
+    let status = 200;
+
+    if (typeof statusOrData === "number") {
+      status = statusOrData;
+    } else {
+      data = statusOrData;
+      message = "OK";
+    }
+
+    const response = {
       requestId: req.requestId,
       timestamp: new Date().toISOString(),
-      data: data,
+      status,
+      message,
+      data,
     };
-
-    if (data && typeof data === "object" && "status" in data) {
-      res.status(data.status);
-    }
 
     logger.info(
       {
@@ -49,8 +54,36 @@ const responseFormatter = (req, res, next) => {
       "Response sent"
     );
 
-    // Call the original json method with formatted data
-    return originalJson.call(this, formattedResponse);
+    return res.status(status).json(response);
+  };
+
+  res.error = function (statusOrError, message) {
+    let status = 500;
+
+    if (typeof statusOrError === "number") {
+      status = statusOrError;
+    } else {
+      message = statusOrError?.message || "Internal Server Error";
+    }
+
+    const response = {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+      status,
+      message,
+    };
+
+    logger.error(
+      {
+        requestId: req.requestId,
+        responseTime: Date.now() - req._startTime + "ms",
+        status,
+        message,
+      },
+      "Error response sent manually"
+    );
+
+    return res.status(status).json(response);
   };
 
   next();
