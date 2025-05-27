@@ -4,6 +4,7 @@ const md5 = require("crypto-js/md5");
 const { get } = require("lodash");
 const logger = require("../utils/logger");
 const createHttpError = require("http-errors");
+const cache = require("../utils/internalCache");
 const smileoneConfig = config.get("smileone");
 
 class SmileoneAdapter {
@@ -66,8 +67,17 @@ class SmileoneAdapter {
   }
 
   async fetchProductSPUs(product) {
+    const cacheKey = `productSPUs:${product}`;
+
+    const cached = cache.getKey(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const response = await this.call("/productlist", { product });
-    return get(response, "data.product", []);
+    const spuList = get(response, "data.product", []);
+    cache.setKey(cacheKey, spuList, 3600000); // Cache for 1 hour
+    return spuList;
   }
 
   async placeOrder(productid, userid, zoneid) {
