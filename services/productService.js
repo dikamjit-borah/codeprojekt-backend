@@ -1,27 +1,52 @@
 const config = require("config");
+const logger = require("../utils/logger");
 const { evaluateRules } = require("../utils/ruleEngine");
 const smileoneAdapter = require("../vendors/smileone.adapter");
 const createHttpError = require("http-errors");
 const db = require("../utils/mongo");
+const { generateHash } = require("../utils/helpers");
 
 const getSPUsForProduct = async (product) => {
-  const productSPUs = await smileoneAdapter.fetchProductSPUs(product);
-  if (!productSPUs || productSPUs.length === 0) {
+  const [productSPUs, existingSpusDoc] = await Promise.all([
+    smileoneAdapter.fetchProductSPUs(product),
+    db.findOne("spus", { product }),
+  ]);
+
+  if (!productSPUs || (productSPUs.length === 0 && !existingSpusDoc)) {
     throw createHttpError(404, "No SPUs found for the given product");
   }
+
+  const currentHash = generateHash(productSPUs);
+
+  if (existingSpusDoc?.hash === currentHash) {
+    logger.info("No change in SPUs. Skipping update.");
+    const spusModifiedDoc = await db.findOne("spus-modified", { product });
+    return spusModifiedDoc?.categorizedSPUs ?? [];
+  }
+
+  const updateSpusPromise = db.updateOne(
+    "spus",
+    { product },
+    { $set: { product, productSPUs, hash: currentHash } },
+    { upsert: true }
+  );
+
   const configsForCategorization = await db.find("configs-category");
-  const categorizedProducts = await categorizeProducts(
+  const categorizedSPUs = await categorizeProducts(
     productSPUs,
     configsForCategorization
   );
 
-  db.updateOne(
-    "spus",
+  const updateModifiedPromise = db.updateOne(
+    "spus-modified",
     { product },
-    { $set: { product, categorizedProducts } } // either updates or inserts
+    { $set: { product, categorizedSPUs, hash: currentHash } },
+    { upsert: true }
   );
 
-  return categorizedProducts;
+  await Promise.all([updateSpusPromise, updateModifiedPromise]);
+
+  return categorizedSPUs;
 };
 
 function extractFacts(product) {
@@ -37,7 +62,7 @@ async function categorizeProducts(products, rulesConfig) {
     extractFacts
   );
 
-  const categorizedProducts = evaluationResults.map(
+  const categorizedSPUs = evaluationResults.map(
     ({ originalItem, matchedEvents }) => {
       const categoryEvent = matchedEvents.find(
         (event) => event.type === "category"
@@ -56,7 +81,7 @@ async function categorizeProducts(products, rulesConfig) {
     }
   );
 
-  return categorizedProducts;
+  return categorizedSPUs;
 }
 
 module.exports = {
