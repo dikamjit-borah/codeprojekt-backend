@@ -1,6 +1,6 @@
 const paymentService = require("../services/paymentService");
 
-const purchaseSPU = async (req, res) => {
+const purchaseSPU = async (req, res, next) => {
   try {
     const spuId = req.params.spuId;
     const { spuDetails, userDetails } = req.body;
@@ -10,16 +10,9 @@ const purchaseSPU = async (req, res) => {
       userDetails
     );
 
-    res.json({
-      status: 200,
-      data: result,
-    });
+    res.success(201, "Order placed successfully", result);
   } catch (error) {
-    console.error("Error in getpaymentList controller:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch payment list",
-    });
+    next(error);
   }
 };
 
