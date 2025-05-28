@@ -53,6 +53,8 @@ app.use((err, req, res, next) => {
   });
 });
 const PORT = process.env.PORT || 3000;
+const db = require("./utils/mongoDB");
+db.connect();
 app.listen(PORT, () => {
   logger.info(
     `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
