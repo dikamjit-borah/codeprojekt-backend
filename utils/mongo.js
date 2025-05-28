@@ -1,12 +1,13 @@
 const config = require("config");
-const uri = config.get("mongoDB.uri");
+const mongoConfig = config.get("mongo");
+const connectionString = `${mongoConfig.uri}/${mongoConfig.dbName}?${mongoConfig.options}`;
 const { MongoClient } = require("mongodb");
 const logger = require("./logger");
 
 class MongoDB {
   constructor() {
-    this.uri = uri;
-    this.client = new MongoClient(this.uri, {
+    this.connectionString = connectionString;
+    this.client = new MongoClient(this.connectionString, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

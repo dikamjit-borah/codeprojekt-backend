@@ -53,7 +53,7 @@ app.use((err, req, res, next) => {
   });
 });
 const PORT = process.env.PORT || 3000;
-const db = require("./utils/mongoDB");
+const db = require("./utils/mongo");
 db.connect();
 app.listen(PORT, () => {
   logger.info(

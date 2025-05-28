@@ -7,8 +7,8 @@ module.exports = {
   },
   brazilianRealToINR: parseFloat(process.env.BRAZILIAN_REAL_TO_INR),
   brazilianRealToSmilecoin: parseFloat(process.env.BRAZILIAN_REAL_TO_SMILECOIN),
-  mongoDB: {
-    uri: process.env.MONGODB_URI,
-    dbName: process.env.MONGODB_DB_NAME,
+  mongo: {
+    uri: process.env.MONGO_URI,
+    dbName: process.env.MONGO_DB_NAME,
   },
 };
