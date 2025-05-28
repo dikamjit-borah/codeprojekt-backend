@@ -1,21 +1,21 @@
 module.exports = {
-  QUERY_POINTS: {
-    url: "/querypoints",
+  CHECK_ROLE: {
+    url: "/merchant/mobilelegends/checkrole",
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   },
-  CHECK_ROLE: {
-    url: "/checkrole",
+  QUERY_POINTS: {
+    url: "/smilecoin/api/querypoints",
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   },
   PRODUCT_LIST: {
-    url: "/productlist",
+    url: "/smilecoin/api/productlist",
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   },
   CREATE_ORDER: {
-    url: "/createorder",
+    url: "/smilecoin/api/createorder",
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   },

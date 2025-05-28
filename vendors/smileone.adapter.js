@@ -81,7 +81,7 @@ class SmileoneAdapter {
         zone_id,
       }),
     });
-    return get(response, "smile_points", 0);
+    return response.data;
   }
 
   async fetchProductSPUs(product) {
