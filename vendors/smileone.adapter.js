@@ -5,6 +5,12 @@ const { get } = require("lodash");
 const logger = require("../utils/logger");
 const createHttpError = require("http-errors");
 const cache = require("../utils/internalCache");
+const {
+  PRODUCT_LIST,
+  QUERY_POINTS,
+  CREATE_ORDER,
+  CHECK_ROLE,
+} = require("../config/smileone.config");
 const smileoneConfig = config.get("smileone");
 
 class SmileoneAdapter {
@@ -23,7 +29,7 @@ class SmileoneAdapter {
     return md5(md5(str).toString()).toString();
   }
 
-  async call(endpoint, body = {}, method = "POST") {
+  async call(options, body = {}) {
     const payload = {
       uid: smileoneConfig.uid,
       email: smileoneConfig.email,
@@ -36,13 +42,13 @@ class SmileoneAdapter {
     };
 
     try {
-      const response = await axios({
-        method,
-        url: `${this.baseURL}${endpoint}`,
+      const axiosConfig = {
+        ...options,
+        url: `${this.baseURL}${options.url}`,
         data: new URLSearchParams(signedPayload),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
-
+      };
+      logger.info({ axiosConfig }, "Calling Smileone API");
+      const response = await axios(axiosConfig);
       return response.data;
     } catch (error) {
       logger.error(
@@ -53,7 +59,7 @@ class SmileoneAdapter {
         "Error calling Smileone API"
       );
       throw createHttpError(
-        500,
+        502,
         `Error calling Smileone API: ${error.message}`
       );
     }
@@ -62,7 +68,19 @@ class SmileoneAdapter {
   // === Vendor-specific endpoints ===
 
   async fetchSmilecoinBalance() {
-    const response = await this.call("/querypoints");
+    const response = await this.call(QUERY_POINTS);
+    return get(response, "smile_points", 0);
+  }
+
+  async fetchPlayerIGN(user_id, zone_id) {
+    const response = await axios({
+      ...CHECK_ROLE,
+      url: `${this.baseURL}${CHECK_ROLE.url}`,
+      data: new URLSearchParams({
+        user_id,
+        zone_id,
+      }),
+    });
     return get(response, "smile_points", 0);
   }
 
@@ -74,7 +92,7 @@ class SmileoneAdapter {
       return cached;
     }
 
-    const response = await this.call("/productlist", { product });
+    const response = await this.call(PRODUCT_LIST, { product });
     const spuList = get(response, "data.product", []);
     cache.setKey(cacheKey, spuList, 3600000); // Cache for 1 hour
     return spuList;
@@ -87,8 +105,16 @@ class SmileoneAdapter {
       userid,
       zoneid,
     };
-    const response = await this.call("/createorder", payload);
-    return response;
+    //Uncomment the following lines to enable actual order placement
+    //const response = await this.call(CREATE_ORDER, payload);
+    //return response;
+    return {
+      status: 200,
+      message: "success",
+      order_id: "S250528064515377SAQO",
+      price: "76.0",
+      info: null,
+    };
   }
 }
 
