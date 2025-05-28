@@ -58,7 +58,7 @@ class MongoDB {
 
   async updateOne(collection, filter, update, options = {}) {
     const col = await this.getCollection(collection);
-    return col.updateOne(filter, update, options);
+    return col.updateOne(filter, update, { ...options, upsert: true });
   }
 
   async updateMany(collection, filter, update, options = {}) {

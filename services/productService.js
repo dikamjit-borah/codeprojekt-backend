@@ -15,6 +15,12 @@ const getSPUsForProduct = async (product) => {
     configsForCategorization
   );
 
+  db.updateOne(
+    "spus",
+    { product },
+    { $set: { product, categorizedProducts } } // either updates or inserts
+  );
+
   return categorizedProducts;
 };
 
