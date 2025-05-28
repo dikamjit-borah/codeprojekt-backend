@@ -2,84 +2,21 @@ const config = require("config");
 const { evaluateRules } = require("../utils/ruleEngine");
 const smileoneAdapter = require("../vendors/smileone.adapter");
 const createHttpError = require("http-errors");
+const db = require("../utils/mongo");
 
 const getSPUsForProduct = async (product) => {
   const productSPUs = await smileoneAdapter.fetchProductSPUs(product);
   if (!productSPUs || productSPUs.length === 0) {
     throw createHttpError(404, "No SPUs found for the given product");
   }
-  const configs = await fetchConfigsForCategories();
-  const categorizedProducts = await categorizeProducts(productSPUs, configs);
+  const configsForCategorization = await db.find("configs-category");
+  const categorizedProducts = await categorizeProducts(
+    productSPUs,
+    configsForCategorization
+  );
 
   return categorizedProducts;
 };
-
-async function fetchConfigsForCategories() {
-  return [
-    {
-      conditions: {
-        any: [
-          {
-            fact: "name",
-            operator: "includes",
-            value: "Passe",
-          },
-          {
-            fact: "name",
-            operator: "includes",
-            value: "Passagem",
-          },
-        ],
-      },
-      event: {
-        type: "category",
-        params: { category: "Pass" },
-      },
-    },
-
-    {
-      conditions: {
-        all: [
-          {
-            fact: "name",
-            operator: "includes",
-            value: "&",
-          },
-          {
-            fact: "name",
-            operator: "includes",
-            value: "Diamond",
-          },
-        ],
-      },
-      event: {
-        type: "category",
-        params: { category: "Bonus Pack" },
-      },
-    },
-
-    {
-      conditions: {
-        all: [
-          {
-            fact: "name",
-            operator: "notIncludes",
-            value: "&",
-          },
-          {
-            fact: "name",
-            operator: "includes",
-            value: "Diamond",
-          },
-        ],
-      },
-      event: {
-        type: "category",
-        params: { category: "Basic Pack" },
-      },
-    },
-  ];
-}
 
 function extractFacts(product) {
   return {
