@@ -80,8 +80,9 @@ class SmileoneAdapter {
     return spuList;
   }
 
-  async placeOrder(productid, userid, zoneid) {
+  async placeOrder(product, productid, userid, zoneid) {
     const payload = {
+      product,
       productid,
       userid,
       zoneid,
