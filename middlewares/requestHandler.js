@@ -11,7 +11,8 @@ const requestIdMiddleware = (req, res, next) => {
   res.setHeader("X-Request-ID", requestId);
 
   // Log the incoming request
-  logger.info(
+  // Log in collection for analytics
+  /* logger.info(
     {
       requestId,
       method: req.method,
@@ -21,7 +22,7 @@ const requestIdMiddleware = (req, res, next) => {
     },
     "Incoming request"
   );
-
+ */
   next();
 };
 
@@ -46,13 +47,13 @@ const responseFormatter = (req, res, next) => {
       data,
     };
 
-    logger.info(
+   /*  logger.info(
       {
         requestId: req.requestId,
         responseTime: Date.now() - req._startTime + "ms",
       },
       "Response sent"
-    );
+    ); */
 
     return res.status(status).json(response);
   };
