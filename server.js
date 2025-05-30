@@ -16,12 +16,7 @@ const app = express();
 
 // Security middleware
 app.use(helmet());
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(",") || "http://localhost:3000",
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(express.json());
 
 // Request tracking and response formatting middleware
