@@ -10,6 +10,19 @@ const fetchPlayerIGN = async (req, res, next) => {
   }
 };
 
+const googleSignInAndFetchProfile = async (req, res, next) => {
+  try {
+    const googleUserInfo = req.body.googleUserInfo;
+    const result = await userService.googleSignInAndFetchProfile(
+      googleUserInfo
+    );
+    res.success(result.inserted ? 201 : 200, "User signed in", result.data);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   fetchPlayerIGN,
+  googleSignInAndFetchProfile,
 };
