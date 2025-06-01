@@ -75,6 +75,11 @@ class MongoDB {
     const col = await this.getCollection(collection);
     return col.deleteMany(filter);
   }
+
+  async aggregate(collection, pipeline, options = {}) {
+    const col = await this.getCollection(collection);
+    return col.aggregate(pipeline, options).toArray();
+  }
 }
 
 module.exports = new MongoDB();
