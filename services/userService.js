@@ -52,7 +52,11 @@ async function fetchUserData(uid) {
     // No $project — include all fields
   ];
 
-  return await mongo.aggregate("users", pipeline);
+  const result = await mongo.aggregate("users", pipeline);
+  if (!result || result.length === 0) {
+    throw createHttpError(404, "User data not found");
+  }
+  return result[0];
 }
 
 module.exports = {
