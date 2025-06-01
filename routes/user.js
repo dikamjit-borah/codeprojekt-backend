@@ -4,6 +4,6 @@ const userController = require("../controllers/userController");
 
 router.get("/playerIGN", userController.fetchPlayerIGN);
 router.post("/login/google", userController.googleSignInAndFetchProfile);
-router.post("/profile/:uid", userController.fetchUserData);
+router.get("/profile/:uid", userController.fetchUserData);
 
 module.exports = router;
