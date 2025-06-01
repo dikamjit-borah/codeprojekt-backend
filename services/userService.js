@@ -35,7 +35,28 @@ const googleSignInAndFetchProfile = async (googleUserInfo) => {
   return { inserted: true, data: userProfile };
 };
 
+async function fetchUserData(uid) {
+  const pipeline = [
+    {
+      $match: { uid }, // Filter by uid in users collection
+    },
+    {
+      $lookup: {
+        from: "transactions", // join with transactions
+        localField: "uid", // field from 'users' collection
+        foreignField: "uid", // field from 'transactions' collection
+        as: "transactions",
+      },
+    },
+    // No $unwind — keep all transactions in an array
+    // No $project — include all fields
+  ];
+
+  return await mongo.aggregate("users", pipeline);
+}
+
 module.exports = {
   fetchPlayerIGN,
   googleSignInAndFetchProfile,
+  fetchUserData,
 };

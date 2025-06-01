@@ -22,7 +22,21 @@ const googleSignInAndFetchProfile = async (req, res, next) => {
   }
 };
 
+const fetchUserData = async (req, res, next) => {
+  try {
+    const uid = req.params.uid;
+    const result = await userService.fetchUserData(uid);
+    if (!result) {
+      return res.error(404, "User data not found");
+    }
+    res.success(200, "User data fetched", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   fetchPlayerIGN,
   googleSignInAndFetchProfile,
+  fetchUserData,
 };
