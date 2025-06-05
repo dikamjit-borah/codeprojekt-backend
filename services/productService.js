@@ -5,6 +5,7 @@ const smileoneAdapter = require("../vendors/smileone.adapter");
 const createHttpError = require("http-errors");
 const db = require("../utils/mongo");
 const { generateHash } = require("../utils/helpers");
+import { groupBy } from "lodash";
 
 const getSPUsForProduct = async (product) => {
   const [productSPUs, existingSpusDoc] = await Promise.all([
@@ -44,9 +45,10 @@ const getSPUsForProduct = async (product) => {
     { upsert: true }
   );
 
-  await Promise.all([updateSpusPromise, updateModifiedPromise]);
+  Promise.all([updateSpusPromise, updateModifiedPromise]);
+  return groupBy(data, 'category');
 
-  return categorizedSPUs;
+  ;
 };
 
 function extractFacts(product) {
