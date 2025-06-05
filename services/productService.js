@@ -5,7 +5,7 @@ const smileoneAdapter = require("../vendors/smileone.adapter");
 const createHttpError = require("http-errors");
 const db = require("../utils/mongo");
 const { generateHash } = require("../utils/helpers");
-import { groupBy } from "lodash";
+const { groupBy } = require("lodash");
 
 const getSPUsForProduct = async (product) => {
   const [productSPUs, existingSpusDoc] = await Promise.all([
