@@ -40,7 +40,7 @@ app.use((err, req, res, next) => {
       url: req.originalUrl,
       ip: req.ip,
     },
-    "ERROR occurred"
+    err.message ?? "Internal Server Error"
   );
 
   res.status(err.status || 500).json({

@@ -22,7 +22,7 @@ const getSPUsForProduct = async (product) => {
   if (existingSpusDoc?.hash === currentHash) {
     logger.info("No change in SPUs. Skipping update.");
     const spusModifiedDoc = await db.findOne("spus-modified", { product });
-    return spusModifiedDoc?.categorizedSPUs ?? [];
+    return groupByCategory(spusModifiedDoc?.categorizedSPUs);
   }
 
   const updateSpusPromise = db.updateOne(
@@ -46,10 +46,12 @@ const getSPUsForProduct = async (product) => {
   );
 
   Promise.all([updateSpusPromise, updateModifiedPromise]);
-  return groupBy(data, 'category');
-
-  ;
+  return groupByCategory(categorizedSPUs);
 };
+
+function groupByCategory(spuArray) {
+  return groupBy(spuArray, "category");
+}
 
 function extractFacts(product) {
   return {
