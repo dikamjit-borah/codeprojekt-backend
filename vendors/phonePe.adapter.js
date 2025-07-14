@@ -8,7 +8,7 @@ const {
 const env = config.get("ENV");
 const phonePeConfig = config.get("phonePe");
 
-class PhonePeClient {
+class PhonePeAdapter {
   constructor() {
     this.client = StandardCheckoutClient.getInstance(
       phonePeConfig.clientId,
@@ -38,4 +38,5 @@ class PhonePeClient {
   // async refund(params) { ... }
 }
 
-module.exports = PhonePeClient;
+const phonePeAdapter = new PhonePeAdapter();
+module.exports = phonePeAdapter;
