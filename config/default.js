@@ -12,4 +12,10 @@ module.exports = {
     dbName: process.env.MONGO_DB_NAME,
     options: process.env.MONGO_URI_OPTIONS,
   },
+  phonePe: {
+    clientId: process.env.PHONEPE_CLIENT_ID,
+    clientSecret: process.env.PHONEPE_CLIENT_SECRET,
+    clientVersion: process.env.PHONEPE_CLIENT_VERSION,
+    redirectUrl: process.env.PHONEPE_REDIRECT_URL,
+  },
 };
