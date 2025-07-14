@@ -1,5 +1,5 @@
 module.exports = {
-  smileone: {
+  smileOne: {
     baseURL: process.env.SMILEONE_BASE_URL,
     uid: process.env.SMILEONE_UID,
     email: process.env.SMILEONE_EMAIL,

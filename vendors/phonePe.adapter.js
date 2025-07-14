@@ -26,12 +26,12 @@ class PhonePeClient {
     redirectUrl,
     expireAfter,
   }) {
-    const reqPay = StandardCheckoutPayRequest.builder()
+    const payRequest = StandardCheckoutPayRequest.builder()
       .merchantOrderId(merchantOrderId || randomUUID())
       .amount(amount)
       .redirectUrl(redirectUrl || this.phonePeConfig.redirectUrl)
       .build();
-    return await this.client.pay(reqPay);
+    return await this.client.pay(payRequest);
   }
 
   // async getStatus(orderId) { ... }

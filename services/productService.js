@@ -1,7 +1,7 @@
 const config = require("config");
 const logger = require("../utils/logger");
 const { evaluateRules } = require("../utils/ruleEngine");
-const smileoneAdapter = require("../vendors/smileone.adapter");
+const smileOneAdapter = require("../vendors/smileOne.adapter");
 const createHttpError = require("http-errors");
 const db = require("../utils/mongo");
 const { generateHash } = require("../utils/helpers");
@@ -9,7 +9,7 @@ const { groupBy } = require("lodash");
 
 const getSPUsForProduct = async (product) => {
   const [productSPUs, existingSpusDoc] = await Promise.all([
-    smileoneAdapter.fetchProductSPUs(product),
+    smileOneAdapter.fetchProductSPUs(product),
     db.findOne("spus", { product }),
   ]);
 
