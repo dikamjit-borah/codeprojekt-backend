@@ -36,9 +36,9 @@ const purchaseSPU = async (
       ...additionalFields,
     });
 
-    let gatewayInitiated;
+    let gatewayResponse;
     try {
-      gatewayInitiated = await initiateGatewayPayment(
+      gatewayResponse = await initiateGatewayPayment(
         `${spuId}-${transactionId}`,
         spuDetails.price,
         redirectUrl
@@ -59,12 +59,13 @@ const purchaseSPU = async (
     await updateTransactionStatus(
       transactionId,
       PURCHASE_STATUS.PENDING,
-      PURCHASE_SUBSTATUS.GATEWAY_INITIATED
+      PURCHASE_SUBSTATUS.GATEWAY_INITIATED,
+      { gatewayResponse }
     );
 
     return {
       transactionId,
-      redirectUrl: gatewayInitiated.redirectUrl,
+      redirectUrl: gatewayResponse.redirectUrl,
     };
   } catch (error) {
     throw createHttpError(
@@ -74,7 +75,7 @@ const purchaseSPU = async (
   }
 };
 
-const validateSPUType = async (spuType, spuDetails, playerDetails) => {
+async function validateSPUType(spuType, spuDetails, playerDetails) {
   switch (spuType) {
     case "merchandise":
       return {};
@@ -93,7 +94,7 @@ const validateSPUType = async (spuType, spuDetails, playerDetails) => {
     default:
       throw createHttpError(400, `Unsupported SPU type: ${spuType}`);
   }
-};
+}
 
 async function initiateGatewayPayment(merchantOrderId, amount, redirectUrl) {
   const response = await phonePeAdapter.pay({
@@ -104,13 +105,18 @@ async function initiateGatewayPayment(merchantOrderId, amount, redirectUrl) {
   return response;
 }
 
-const updateTransactionStatus = async (transactionId, status, subStatus) => {
+async function updateTransactionStatus(
+  transactionId,
+  status,
+  subStatus,
+  otherFields
+) {
   await db.updateOne(
     "transactions",
     { transactionId },
-    { $set: { status, subStatus } }
+    { $set: { status, subStatus, ...otherFields } }
   );
-};
+}
 
 module.exports = {
   purchaseSPU,
