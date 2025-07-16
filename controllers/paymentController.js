@@ -3,14 +3,24 @@ const paymentService = require("../services/paymentService");
 const purchaseSPU = async (req, res, next) => {
   try {
     const spuId = req.params.spuId;
-    const { spuDetails, userDetails } = req.body;
+    const { spuDetails, spuType, userDetails, playerDetails } = req.body;
     const result = await paymentService.purchaseSPU(
       spuId,
       spuDetails,
-      userDetails
+      spuType,
+      userDetails,
+      playerDetails
     );
 
-    res.success(201, "Order placed successfully", result);
+    res.success(201, "SPU purchase initiated", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const processPhonePeWebhook = async (req, res, next) => {
+  try {
+    res.success(201, "SPU purchase completed succesfully", result);
   } catch (error) {
     next(error);
   }
@@ -18,4 +28,5 @@ const purchaseSPU = async (req, res, next) => {
 
 module.exports = {
   purchaseSPU,
+  processPhonePeWebhook,
 };
