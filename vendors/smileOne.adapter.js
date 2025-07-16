@@ -10,13 +10,13 @@ const {
   QUERY_POINTS,
   CREATE_ORDER,
   CHECK_ROLE,
-} = require("../config/smileone.config");
-const smileoneConfig = config.get("smileone");
+} = require("../config/smileOne.config");
+const smileOneConfig = config.get("smileOne");
 
-class SmileoneAdapter {
+class SmileOneAdapter {
   constructor() {
-    this.baseURL = smileoneConfig.baseURL;
-    this.secretKey = smileoneConfig.secretKey;
+    this.baseURL = smileOneConfig.baseURL;
+    this.secretKey = smileOneConfig.secretKey;
   }
   generateSignature(payload) {
     const sortedKeys = Object.keys(payload).sort();
@@ -31,8 +31,8 @@ class SmileoneAdapter {
 
   async call(options, body = {}) {
     const payload = {
-      uid: smileoneConfig.uid,
-      email: smileoneConfig.email,
+      uid: smileOneConfig.uid,
+      email: smileOneConfig.email,
       time: Math.floor(Date.now() / 1000),
       ...body,
     };
@@ -47,7 +47,7 @@ class SmileoneAdapter {
         url: `${this.baseURL}${options.url}`,
         data: new URLSearchParams(signedPayload),
       };
-      logger.info({ axiosConfig }, "Calling Smileone API");
+      logger.info({ axiosConfig }, "Calling SmileOne API");
       const response = await axios(axiosConfig);
       return response.data;
     } catch (error) {
@@ -56,11 +56,11 @@ class SmileoneAdapter {
           payload: signedPayload,
           error: error.message,
         },
-        "Error calling Smileone API"
+        "Error calling SmileOne API"
       );
       throw createHttpError(
         502,
-        `Error calling Smileone API: ${error.message}`
+        `Error calling SmileOne API: ${error.message}`
       );
     }
   }
@@ -118,5 +118,5 @@ class SmileoneAdapter {
   }
 }
 
-const smileoneAdapter = new SmileoneAdapter();
-module.exports = smileoneAdapter;
+const smileOneAdapter = new SmileOneAdapter();
+module.exports = smileOneAdapter;

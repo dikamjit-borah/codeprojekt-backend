@@ -1,37 +1,116 @@
 const config = require("config");
 const db = require("../utils/mongo");
-const smileoneAdapter = require("../vendors/smileone.adapter");
 const createHttpError = require("http-errors");
+const UUID = require("uuid");
 const brazilianRealToSmileCoin = config.get("brazilianRealToSmilecoin");
+const smileOneAdapter = require("../vendors/smileOne.adapter");
+const phonePeAdapter = require("../vendors/phonePe.adapter");
+const { PURCHASE_STATUS, PURCHASE_SUBSTATUS } = require("../utils/constants");
 
-const purchaseSPU = async (spuId, spuDetails, playerDetails, userDetails) => {
-  const smileoneBalance = await smileoneAdapter.fetchSmilecoinBalance();
-  if (spuDetails.price * brazilianRealToSmileCoin > smileoneBalance) {
-    throw createHttpError(402, "Insufficient Smile Coin balance");
+const purchaseSPU = async (
+  spuId,
+  spuDetails,
+  spuType,
+  userDetails,
+  playerDetails,
+  redirectUrl
+) => {
+  const transactionId = UUID.v4();
+
+  try {
+    const additionalFields = await validateSPUType(
+      spuType,
+      spuDetails,
+      playerDetails
+    );
+
+    // Create initial transaction entry
+    await db.insertOne("transactions", {
+      transactionId,
+      spuId,
+      spuDetails,
+      spuType,
+      userDetails,
+      status: PURCHASE_STATUS.PENDING,
+      subStatus: PURCHASE_SUBSTATUS.ORDER_INITIATED,
+      ...additionalFields,
+    });
+
+    let gatewayInitiated;
+    try {
+      gatewayInitiated = await initiateGatewayPayment(
+        `${spuId}-${transactionId}`,
+        spuDetails.price,
+        redirectUrl
+      );
+    } catch (gatewayError) {
+      await updateTransactionStatus(
+        transactionId,
+        PURCHASE_STATUS.FAILED,
+        PURCHASE_SUBSTATUS.GATEWAY_FAILED
+      );
+      throw createHttpError(
+        502,
+        `Payment gateway initiation failed: ${gatewayError.message}`
+      );
+    }
+
+    // Update status after successful gateway init
+    await updateTransactionStatus(
+      transactionId,
+      PURCHASE_STATUS.PENDING,
+      PURCHASE_SUBSTATUS.GATEWAY_INITIATED
+    );
+
+    return {
+      transactionId,
+      redirectUrl: gatewayInitiated.redirectUrl,
+    };
+  } catch (error) {
+    throw createHttpError(
+      error.statusCode || 500,
+      `Failed to process SPU purchase: ${error.message}`
+    );
   }
-  const orderDetails = await smileoneAdapter.placeOrder(
-    spuDetails.product,
-    spuId,
-    playerDetails.userid,
-    playerDetails.zoneid
-  );
-
-  // save order details to the database
-  return await db.insertOne("transactions", {
-    spuId,
-    spuDetails,
-    playerDetails,
-    userDetails,
-    orderDetails,
-    status: "SUCCESS",
-  });
-  //postPaymentWorkflow();
 };
 
-async function postPaymentWorkflow() {
-  generateReceipt();
-  sendEmailNotification();
+const validateSPUType = async (spuType, spuDetails, playerDetails) => {
+  switch (spuType) {
+    case "merchandise":
+      return {};
+
+    case "inGameItem": {
+      const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
+      const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
+
+      if (priceInSmileCoin > smileOneBalance) {
+        throw createHttpError(402, "Insufficient Smile Coin balance");
+      }
+
+      return { playerDetails };
+    }
+
+    default:
+      throw createHttpError(400, `Unsupported SPU type: ${spuType}`);
+  }
+};
+
+async function initiateGatewayPayment(merchantOrderId, amount, redirectUrl) {
+  const response = await phonePeAdapter.pay({
+    merchantOrderId,
+    amount,
+    redirectUrl,
+  });
+  return response;
 }
+
+const updateTransactionStatus = async (transactionId, status, subStatus) => {
+  await db.updateOne(
+    "transactions",
+    { transactionId },
+    { $set: { status, subStatus } }
+  );
+};
 
 module.exports = {
   purchaseSPU,
