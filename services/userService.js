@@ -1,9 +1,9 @@
 const createHttpError = require("http-errors");
-const smileoneAdapter = require("../vendors/smileone.adapter");
+const smileOneAdapter = require("../vendors/smileOne.adapter");
 const mongo = require("../utils/mongo");
 
 const fetchPlayerIGN = async (userid, zoneid) => {
-  const playerProfile = await smileoneAdapter.fetchPlayerIGN(userid, zoneid);
+  const playerProfile = await smileOneAdapter.fetchPlayerIGN(userid, zoneid);
   if (!playerProfile || !playerProfile.username) {
     throw createHttpError(404, "Player profile not found");
   }

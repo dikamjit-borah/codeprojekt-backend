@@ -24,9 +24,13 @@ app.use(requestIdMiddleware);
 app.use(responseFormatter);
 
 // Routes
-app.use("/api/product", require("./routes/product"));
-app.use("/api/payment", require("./routes/payment"));
-app.use("/api/user", require("./routes/user"));
+const v1Router = express.Router();
+
+app.use("/v1", v1Router); //router for versioning
+v1Router.use("/product", require("./routes/product"));
+v1Router.use("/payment", require("./routes/payment"));
+v1Router.use("/user", require("./routes/user"));
+
 app.use("/health", require("./routes/health"));
 
 // Error handling middleware

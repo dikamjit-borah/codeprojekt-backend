@@ -5,10 +5,10 @@ const {
   StandardCheckoutPayRequest,
   Env,
 } = require("pg-sdk-node");
-const env = config.get("ENV");
+const env = config.get("env");
 const phonePeConfig = config.get("phonePe");
 
-class PhonePeClient {
+class PhonePeAdapter {
   constructor() {
     this.client = StandardCheckoutClient.getInstance(
       phonePeConfig.clientId,
@@ -26,16 +26,17 @@ class PhonePeClient {
     redirectUrl,
     expireAfter,
   }) {
-    const reqPay = StandardCheckoutPayRequest.builder()
+    const payRequest = StandardCheckoutPayRequest.builder()
       .merchantOrderId(merchantOrderId || randomUUID())
       .amount(amount)
-      .redirectUrl(redirectUrl || this.phonePeConfig.redirectUrl)
+      .redirectUrl(redirectUrl || phonePeConfig.redirectUrl)
       .build();
-    return await this.client.pay(reqPay);
+    return await this.client.pay(payRequest);
   }
 
   // async getStatus(orderId) { ... }
   // async refund(params) { ... }
 }
 
-module.exports = PhonePeClient;
+const phonePeAdapter = new PhonePeAdapter();
+module.exports = phonePeAdapter;
