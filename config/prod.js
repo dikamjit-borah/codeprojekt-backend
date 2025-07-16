@@ -1,5 +1,5 @@
 module.exports = {
-  env: "stage",
+  env: "prod",
   smileOne: {
     baseURL: process.env.SMILEONE_BASE_URL,
     uid: process.env.SMILEONE_UID,
@@ -14,9 +14,9 @@ module.exports = {
     options: process.env.MONGO_URI_OPTIONS,
   },
   phonePe: {
-    clientId: process.env.TEST_PHONEPE_CLIENT_ID,
-    clientSecret: process.env.TEST_PHONEPE_CLIENT_SECRET,
-    clientVersion: process.env.TEST_PHONEPE_CLIENT_VERSION,
-    redirectUrl: process.env.TEST_PHONEPE_REDIRECT_URL,
+    clientId: process.env.PHONEPE_CLIENT_ID,
+    clientSecret: process.env.PHONEPE_CLIENT_SECRET,
+    clientVersion: process.env.PHONEPE_CLIENT_VERSION,
+    redirectUrl: process.env.PHONEPE_REDIRECT_URL,
   },
 };

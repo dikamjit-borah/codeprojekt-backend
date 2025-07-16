@@ -5,7 +5,7 @@ const {
   StandardCheckoutPayRequest,
   Env,
 } = require("pg-sdk-node");
-const env = config.get("ENV");
+const env = config.get("env");
 const phonePeConfig = config.get("phonePe");
 
 class PhonePeAdapter {
@@ -29,7 +29,7 @@ class PhonePeAdapter {
     const payRequest = StandardCheckoutPayRequest.builder()
       .merchantOrderId(merchantOrderId || randomUUID())
       .amount(amount)
-      .redirectUrl(redirectUrl || this.phonePeConfig.redirectUrl)
+      .redirectUrl(redirectUrl || phonePeConfig.redirectUrl)
       .build();
     return await this.client.pay(payRequest);
   }
