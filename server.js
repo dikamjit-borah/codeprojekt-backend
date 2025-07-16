@@ -24,9 +24,13 @@ app.use(requestIdMiddleware);
 app.use(responseFormatter);
 
 // Routes
-app.use("/api/product", require("./routes/product"));
-app.use("/api/payment", require("./routes/payment"));
-app.use("/api/user", require("./routes/user"));
+const v1Router = express.Router();
+
+app.use("/v1", v1Router); //router for versioning
+v1Router.use("/product", require("./routes/product"));
+v1Router.use("/payment", require("./routes/payment"));
+v1Router.use("/user", require("./routes/user"));
+
 app.use("/health", require("./routes/health"));
 
 // Error handling middleware
@@ -46,7 +50,6 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     status: err.status || 500,
     message: err.message || "Internal Server Error",
-    stack: err.stack,
   });
 });
 const PORT = process.env.PORT || 3000;

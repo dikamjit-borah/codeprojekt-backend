@@ -1,4 +1,5 @@
 const paymentService = require("../services/paymentService");
+const logger = require("../utils/logger");
 
 const purchaseSPU = async (req, res, next) => {
   try {
@@ -20,7 +21,8 @@ const purchaseSPU = async (req, res, next) => {
 
 const processPhonePeWebhook = async (req, res, next) => {
   try {
-    res.success(201, "SPU purchase completed succesfully", result);
+    logger.info(req.body, "Processing PhonePe webhook");
+    res.success(201, "Webhook processed successfully");
   } catch (error) {
     next(error);
   }
