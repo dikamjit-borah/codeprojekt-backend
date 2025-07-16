@@ -11,6 +11,16 @@ const getSPUsForProduct = async (req, res, next) => {
   }
 };
 
+const getMerch = async (req, res, next) => {
+  try {
+    const result = await productService.getMerch();
+    res.success(200, "Merch fetched successfully", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getSPUsForProduct,
+  getMerch,
 };
