@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "stage": "SET NODE_ENV=stage&&nodemon server.js",
-    "prod": "NODE_ENV=prod node server.js",
+    "prod": "SET NODE_ENV=prod&&node server.js",
     "stage-unix": "NODE_ENV=stage nodemon server.js",
     "prod-unix": "NODE_ENV=prod node server.js"
   },

@@ -88,6 +88,10 @@ async function categorizeProducts(products, rulesConfig) {
   return categorizedSPUs;
 }
 
+const getMerch = async () => {
+  return await db.find("merch", {});
+};
 module.exports = {
   getSPUsForProduct,
+  getMerch,
 };
