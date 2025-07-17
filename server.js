@@ -59,4 +59,6 @@ app.listen(PORT, () => {
   logger.info(
     `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
   );
+  logger.info("Loaded environment variables from .env file:");
+  logger.info(dotenv.config().parsed);
 });
