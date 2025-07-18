@@ -34,8 +34,16 @@ class PhonePeAdapter {
     return await this.client.pay(payRequest);
   }
 
-  // async getStatus(orderId) { ... }
-  // async refund(params) { ... }
+  async validateCallback(authorizationHeaderData, callbackResponseBody) {
+    const phonepeS2SCallbackResponseBodyString = JSON.stringify(callbackResponseBody);
+    const callbackResponse = this.client.validateCallback(
+      phonePeConfig.merchantUsername,
+      phonePeConfig.merchantPassword,
+      authorizationHeaderData,
+      phonepeS2SCallbackResponseBodyString
+    );
+    return callbackResponse;
+  }
 }
 
 const phonePeAdapter = new PhonePeAdapter();

@@ -18,5 +18,7 @@ module.exports = {
     clientSecret: process.env.TEST_PHONEPE_CLIENT_SECRET,
     clientVersion: process.env.TEST_PHONEPE_CLIENT_VERSION,
     redirectUrl: process.env.TEST_PHONEPE_REDIRECT_URL,
+    merchantUsername: process.env.TEST_PHONEPE_MERCHANT_USERNAME,
+    merchantPassword: process.env.TEST_PHONEPE_MERCHANT_PASSWORD,
   },
 };

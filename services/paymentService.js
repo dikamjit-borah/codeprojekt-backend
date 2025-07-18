@@ -5,7 +5,12 @@ const UUID = require("uuid");
 const brazilianRealToSmileCoin = config.get("brazilianRealToSmilecoin");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
-const { PURCHASE_STATUS, PURCHASE_SUBSTATUS } = require("../utils/constants");
+const {
+  PURCHASE_STATUS,
+  PURCHASE_SUBSTATUS,
+  SPU_TYPES,
+} = require("../utils/constants");
+const logger = require("../utils/logger");
 
 const purchaseSPU = async (
   spuId,
@@ -40,8 +45,7 @@ const purchaseSPU = async (
     try {
       gatewayResponse = await initiateGatewayPayment(
         `${spuId}-${transactionId}`,
-        spuDetails.price,
-        redirectUrl
+        spuDetails.price, redirectUrl
       );
     } catch (gatewayError) {
       await updateTransactionStatus(
@@ -77,16 +81,12 @@ const purchaseSPU = async (
 
 async function validateSPUType(spuType, spuDetails, playerDetails) {
   switch (spuType) {
-    case "merchandise":
+    case SPU_TYPES.MERCH:
       return {};
 
-    case "inGameItem": {
-      const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
-      const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
-
-      if (priceInSmileCoin > smileOneBalance) {
+    case SPU_TYPES.IGT: {
+      if (!(await hasSufficientSmileCoin()))
         throw createHttpError(402, "Insufficient Smile Coin balance");
-      }
 
       return { playerDetails };
     }
@@ -96,6 +96,20 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
   }
 }
 
+async function hasSufficientSmileCoin() {
+  try {
+    const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
+    const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
+
+    if (priceInSmileCoin > smileOneBalance) {
+      return false; // Insufficient balance
+    }
+    return true;
+  } catch (error) {
+    logger.error(`Failed to fetch Smile Coin balance: ${error.message}`);
+    return false; // Assume insufficient balance on error
+  }
+}
 async function initiateGatewayPayment(merchantOrderId, amount, redirectUrl) {
   const response = await phonePeAdapter.pay({
     merchantOrderId,
@@ -118,6 +132,49 @@ async function updateTransactionStatus(
   );
 }
 
+const processPhonePeWebhook = async (headers, body) => {
+  const transaction = await this.fetchTransactionForOrderId();
+  const spuType = transaction.spuType;
+  switch (spuType) {
+    case SPU_TYPES.MERCH:
+      await paymentService.processMerchPurchase(body, transaction);
+      break;
+    case SPU_TYPES.IGT:
+      await paymentService.processInGameItemPurchase(
+        headers,
+        body,
+        transaction
+      );
+      break;
+  }
+};
+
+async function fetchTransactionForOrderId(orderId) {
+  const transaction = await db.findOne("transactions", { orderId });
+  if (!transaction) {
+    throw createHttpError(404, "Transaction not found");
+  }
+  return transaction;
+}
+
+async function processMerchPurchase(webhookData, transaction) {
+  // Process merchandise purchase logic here
+}
+
+async function processInGameItemPurchase(headers, body, transaction) {
+  const callbackResponse = await phonePeAdapter.validateCallback(
+    headers.authorization,
+    body
+  );
+
+  const orderId = callbackResponse.payload.orderId;
+  const state = callbackResponse.payload.state;
+
+  if (await hasSufficientSmileCoin()) {
+    // Process in-game item purchase logic here
+  }
+}
 module.exports = {
   purchaseSPU,
+  processPhonePeWebhook,
 };

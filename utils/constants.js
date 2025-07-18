@@ -48,8 +48,14 @@ const PAYMENT_TRANSITIONS = [
   },
 ];
 
+const SPU_TYPES = {
+  MERCH: "merchandise",
+  IGT: "inGameItem",
+};
+
 // Export all constants
 module.exports = {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
+  SPU_TYPES,
 };
