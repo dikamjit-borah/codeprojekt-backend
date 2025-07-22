@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant User
+    participant Gateway as Payment Gateway
+    participant Server as Backend Server
+    participant Queue as Message Queue
+    participant Vendor as Vendor API
+    participant Socket as WebSocket
+
+    User->>Gateway: 1. Initiate payment
+    Gateway->>User: 2. Redirect to payment page
+    User->>Gateway: 3. Complete payment
+    Gateway->>Server: 4. Send webhook notification
+    Server->>Server: 5. Validate webhook signature
+    Server->>Server: 6. Update transaction status
+    Server->>Socket: 7. Emit payment status update
+    Server->>Queue: 8. Queue vendor purchase
+    Queue->>Vendor: 9. Process vendor purchase
+    Vendor->>Queue: 10. Return purchase result
+    Queue->>Server: 11. Process purchase result
+    Server->>Server: 12. Update transaction status
+    Server->>Socket: 13. Emit final status update
+    User->>Server: 14. Check transaction status
+    Server->>User: 15. Return current status
+
+    Note over Queue,Vendor: Automatic retry for failures
+    Note over Server,Queue: Lock-based concurrency control
+    Note over Server,Socket: Real-time status updates
