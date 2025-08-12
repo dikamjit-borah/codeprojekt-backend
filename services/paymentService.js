@@ -174,7 +174,92 @@ async function processInGameItemPurchase(headers, body, transaction) {
     // Process in-game item purchase logic here
   }
 }
+
+async function getTransactionStatus(transactionId) {
+  try {
+    const transaction = await db.findOne("transactions", { transactionId });
+    
+    if (!transaction) {
+      throw createHttpError(404, "Transaction not found");
+    }
+
+    // Calculate stage based on status and substatus
+    let stage = 1;
+    if (transaction.status === PURCHASE_STATUS.PENDING) {
+      switch (transaction.subStatus) {
+        case PURCHASE_SUBSTATUS.ORDER_INITIATED:
+          stage = 1;
+          break;
+        case PURCHASE_SUBSTATUS.GATEWAY_INITIATED:
+        case PURCHASE_SUBSTATUS.PAYMENT_IN_PROGRESS:
+          stage = 2;
+          break;
+        case PURCHASE_SUBSTATUS.PAYMENT_SUCCESS:
+        case PURCHASE_SUBSTATUS.ORDER_PLACED:
+          stage = 3;
+          break;
+      }
+    } else if (transaction.status === PURCHASE_STATUS.SUCCESS) {
+      stage = 4;
+    } else if (transaction.status === PURCHASE_STATUS.FAILED) {
+      stage = transaction.stage || 1; // Maintain the stage where it failed
+    }
+
+    return {
+      transactionId,
+      status: transaction.status,
+      subStatus: transaction.subStatus,
+      stage,
+      spuId: transaction.spuId,
+      spuType: transaction.spuType,
+      spuDetails: transaction.spuDetails,
+      userDetails: transaction.userDetails,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+      lastUpdated: transaction.updatedAt || transaction.createdAt
+    };
+  } catch (error) {
+    logger.error(`Failed to get transaction status: ${error.message}`);
+    throw error;
+  }
+}
+
+async function updateTransactionWithStage(transactionId, status, subStatus, stage, otherFields = {}) {
+  try {
+    await db.updateOne(
+      "transactions",
+      { transactionId },
+      { 
+        $set: { 
+          status, 
+          subStatus, 
+          stage,
+          updatedAt: new Date(),
+          ...otherFields 
+        } 
+      }
+    );
+    
+    // Emit socket event for real-time updates
+    const socketEmitter = require("../utils/socketEmitter");
+    if (socketEmitter.initialized) {
+      socketEmitter.emitTransactionUpdate(transactionId, {
+        status,
+        subStatus,
+        stage,
+        ...otherFields
+      });
+    }
+    
+    logger.info(`Transaction ${transactionId} updated to stage ${stage}, status: ${status}, subStatus: ${subStatus}`);
+  } catch (error) {
+    logger.error(`Failed to update transaction: ${error.message}`);
+    throw error;
+  }
+}
 module.exports = {
   purchaseSPU,
   processPhonePeWebhook,
+  getTransactionStatus,
+  updateTransactionWithStage,
 };
