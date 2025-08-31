@@ -1,7 +1,7 @@
-const db = require('../utils/mongo');
+const db = require('./mongo');
 const smileOneAdapter = require('../vendors/smileOne.adapter');
 const logger = require('../utils/logger');
-const { checkRedisAvailability } = require('../utils/redisCheck');
+const { checkRedisAvailability } = require('./redis');
 const { PURCHASE_STATUS, PURCHASE_SUBSTATUS } = require('../utils/constants');
 
 /**
@@ -12,7 +12,7 @@ const { PURCHASE_STATUS, PURCHASE_SUBSTATUS } = require('../utils/constants');
 /**
  * Initialize vendor queue worker
  */
-async function initializeVendorQueueWorker() {
+async function initializeQueueWorker() {
   logger.info('Initializing vendor queue worker...');
 
   // Check Redis availability
@@ -20,20 +20,16 @@ async function initializeVendorQueueWorker() {
   const isRedisAvailable = await checkRedisAvailability();
   console.log('Redis availability:', isRedisAvailable);
   if(!isRedisAvailable) {
-    logger.error('❌ Queue cannot start: Redis is not available. Please ensure Redis server is running and accessible.');
-    logger.error('💡 To fix this issue:');
-    logger.error('   1. Install Redis: sudo apt install redis-server');
-    logger.error('   2. Start Redis: sudo systemctl start redis-server');
-    logger.error('   3. Check Redis: redis-cli ping');
+    logger.error('Queue cannot start: Redis is not available.');
     return false; // throw new Error('Redis not available - Queue worker cannot start'); // Stop initialization if Redis is not available
   }
 
-  const { queue } = require('../utils/vendorQueue');
+  const { queue } = require('./queue');
   // Test queue connection first
   queue.isReady().then(() => {
-    console.log('✅ Queue is ready and connected to Redis');
+    console.log('Queue is ready and connected to Redis');
   }).catch((error) => {
-    console.error('❌ Queue connection failed:', error.message);
+    console.error('Queue connection failed:', error.message);
   });
 
   // Process place-order jobs
@@ -263,7 +259,7 @@ async function updateTransactionToFailed(transactionId, errorMessage) {
  */
 async function emitTransactionUpdate(transactionId, updateData) {
   try {
-    const socketEmitter = require('../utils/socketEmitter');
+    const socketEmitter = require('./socket');
     if (socketEmitter && socketEmitter.initialized) {
       socketEmitter.emitTransactionUpdate(transactionId, {
         ...updateData,
@@ -276,6 +272,6 @@ async function emitTransactionUpdate(transactionId, updateData) {
 }
 
 module.exports = {
-  initializeVendorQueueWorker,
+  initializeQueueWorker,
   processVendorPackPurchase
 };

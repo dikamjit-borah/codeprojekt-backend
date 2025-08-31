@@ -2,7 +2,7 @@ const config = require("config");
 const mongoConfig = config.get("mongo");
 const connectionString = `${mongoConfig.uri}/${mongoConfig.dbName}?${mongoConfig.options}`;
 const { MongoClient } = require("mongodb");
-const logger = require("./logger");
+const logger = require("../utils/logger");
 
 class MongoDB {
   constructor() {

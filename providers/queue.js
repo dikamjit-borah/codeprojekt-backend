@@ -1,6 +1,6 @@
 const Queue = require('bull');
 const config = require('config');
-const logger = require('./logger');
+const logger = require('../utils/logger');
 
 // Create vendor queue with Redis backend
 const vendorQueue = new Queue('vendor-api-calls', {

@@ -3,7 +3,7 @@ const logger = require("../utils/logger");
 const { evaluateRules } = require("../utils/ruleEngine");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const createHttpError = require("http-errors");
-const db = require("../utils/mongo");
+const db = require("../providers/mongo");
 const { generateHash } = require("../utils/helpers");
 const { groupBy } = require("lodash");
 

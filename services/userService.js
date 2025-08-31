@@ -1,6 +1,6 @@
 const createHttpError = require("http-errors");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
-const mongo = require("../utils/mongo");
+const mongo = require("../providers/mongo");
 
 const fetchPlayerIGN = async (userid, zoneid) => {
   const playerProfile = await smileOneAdapter.fetchPlayerIGN(userid, zoneid);

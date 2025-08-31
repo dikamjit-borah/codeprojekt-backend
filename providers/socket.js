@@ -1,5 +1,5 @@
 const socketIO = require('socket.io');
-const logger = require('./logger');
+const logger = require('../utils/logger');
 
 class SocketEmitter {
   constructor() {

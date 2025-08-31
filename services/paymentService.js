@@ -1,5 +1,5 @@
 const config = require("config");
-const db = require("../utils/mongo");
+const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
 const brazilianRealToSmileCoin = config.get("brazilianRealToSmilecoin");
@@ -324,7 +324,7 @@ async function queueInGameItemPurchase(headers, body, transaction) {
   
   try {
     // Import vendor queue utility
-    const vendorQueue = require('../utils/vendorQueue');
+    const vendorQueue = require('../providers/queue');
     
     // Add to vendor API queue for pack purchase
     const job = await vendorQueue.addJob('place-order', {
@@ -438,7 +438,7 @@ async function updateTransactionWithStage(transactionId, status, subStatus, stag
     );
     
     // Emit socket event for real-time updates
-    const socketEmitter = require("../utils/socketEmitter");
+    const socketEmitter = require("../providers/socket");
     if (socketEmitter.initialized) {
       socketEmitter.emitTransactionUpdate(transactionId, {
         status,
