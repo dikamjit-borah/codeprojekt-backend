@@ -21,4 +21,10 @@ module.exports = {
     merchantUsername: process.env.TEST_PHONEPE_MERCHANT_USERNAME,
     merchantPassword: process.env.TEST_PHONEPE_MERCHANT_PASSWORD,
   },
+  redis: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    db: process.env.REDIS_DB || 0,
+  },
 };
