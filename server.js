@@ -1,17 +1,16 @@
 require("dotenv").config();
-
+const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const dotenv = require("dotenv");
 const {
   requestIdMiddleware,
   responseFormatter,
 } = require("./middlewares/requestHandler");
+const {checkRedisAvailability}  = require("./utils/redisCheck");
 const logger = require("./utils/logger");
 
 dotenv.config();
-
 const app = express();
 
 // Security middleware
@@ -56,6 +55,7 @@ const PORT = process.env.PORT || 3000;
 const db = require("./utils/mongo");
 const socketEmitter = require("./utils/socketEmitter");
 
+// Initialize database connection
 db.connect();
 
 const server = app.listen(PORT, () => {
@@ -68,3 +68,12 @@ const server = app.listen(PORT, () => {
 
 // Initialize Socket.IO
 socketEmitter.initialize(server);
+
+// Initialize Queue Worker
+try {
+  const { initializeVendorQueueWorker } = require('./workers/vendorQueueWorker');
+  initializeVendorQueueWorker();
+  logger.info('Queue worker initialized successfully');
+} catch (error) {
+  logger.error('Failed to initialize queue worker:', error.message);
+}

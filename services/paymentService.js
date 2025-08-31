@@ -18,7 +18,7 @@ const purchaseSPU = async (
   spuType,
   userDetails,
   playerDetails,
-  redirectUrl
+  statusPageRedirectUrl
 ) => {
   const transactionId = UUID.v4();
 
@@ -45,7 +45,7 @@ const purchaseSPU = async (
     try {
       gatewayResponse = await initiateGatewayPayment(
         `${spuId}-${transactionId}`,
-        spuDetails.price, redirectUrl
+        spuDetails.price, statusPageRedirectUrl
       );
     } catch (gatewayError) {
       await updateTransactionStatus(
@@ -69,7 +69,7 @@ const purchaseSPU = async (
 
     return {
       transactionId,
-      redirectUrl: gatewayResponse.redirectUrl,
+      phonePayRedirectUrl: gatewayResponse.redirectUrl,
     };
   } catch (error) {
     throw createHttpError(
@@ -85,7 +85,7 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
       return {};
 
     case SPU_TYPES.IGT: {
-      if (!(await hasSufficientSmileCoin()))
+      if (!(await hasSufficientSmileCoin(spuDetails)))
         throw createHttpError(402, "Insufficient Smile Coin balance");
 
       return { playerDetails };
@@ -96,10 +96,11 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
   }
 }
 
-async function hasSufficientSmileCoin() {
+  async function hasSufficientSmileCoin(spuDetails) {
   try {
     const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
     const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
+    logger.info(`Smile Coin balance: ${smileOneBalance}, Price in Smile Coin: ${priceInSmileCoin}`);
 
     if (priceInSmileCoin > smileOneBalance) {
       return false; // Insufficient balance
@@ -110,13 +111,18 @@ async function hasSufficientSmileCoin() {
     return false; // Assume insufficient balance on error
   }
 }
-async function initiateGatewayPayment(merchantOrderId, amount, redirectUrl) {
-  const response = await phonePeAdapter.pay({
-    merchantOrderId,
-    amount,
-    redirectUrl,
-  });
-  return response;
+async function initiateGatewayPayment(merchantOrderId, amount, statusPageRedirectUrl) {
+  try {
+    const response = await phonePeAdapter.pay({
+      merchantOrderId,
+      amount,
+      statusPageRedirectUrl,
+    });
+    return response;
+  } catch (error) {
+    logger.error(`Failed to initiate gateway payment: ${error.message}`);
+    throw createHttpError(502, `Payment gateway initiation failed: ${error.message}`);
+  }
 }
 
 async function updateTransactionStatus(
@@ -132,46 +138,237 @@ async function updateTransactionStatus(
   );
 }
 
+/**
+ * Process PhonePe webhook - main entry point for webhook processing
+ * @param {Object} headers Request headers containing authorization
+ * @param {Object} body Webhook payload
+ * @returns {Promise<Object>} Processing result
+ */
 const processPhonePeWebhook = async (headers, body) => {
-  const transaction = await this.fetchTransactionForOrderId();
-  const spuType = transaction.spuType;
-  switch (spuType) {
-    case SPU_TYPES.MERCH:
-      await paymentService.processMerchPurchase(body, transaction);
-      break;
-    case SPU_TYPES.IGT:
-      await paymentService.processInGameItemPurchase(
-        headers,
-        body,
-        transaction
-      );
-      break;
+  try {
+    //Validate webhook signature
+    const isValid = await phonePeAdapter.validateCallback(
+      headers.authorization,
+      body
+    );
+    
+    if (!isValid) {
+      logger.error('Invalid PhonePe webhook signature');
+      throw createHttpError(401, 'Invalid webhook signature');
+    }
+    
+    // Extract order ID and payment status from the payload
+    const merchantOrderId = body.payload.merchantOrderId;
+    const paymentStatus = body.payload.state;
+
+    logger.info(`Received PhonePe webhook for order ${merchantOrderId} with status ${paymentStatus}`);
+
+    // return body.payload;
+    
+    if (!merchantOrderId) {
+      throw createHttpError(400, 'Missing merchant order ID in webhook payload');
+    }
+    
+    // Extract transaction ID from merchant order ID (format: spuId-transactionId)
+    const parts = merchantOrderId.split('-');
+    const spuId = parts[0]; // 'test'
+    const transactionId = parts.slice(1).join('-');
+
+    if (!transactionId) {
+      throw createHttpError(400, `Invalid merchant order ID format: ${merchantOrderId}`);
+    }
+    
+    // Fetch transaction
+    const transaction = await db.findOne("transactions", { transactionId });
+    if (!transaction) {
+      throw createHttpError(404, `Transaction not found for ID: ${transactionId}`);
+    }
+    
+    
+    // To do: Need to correct the structure
+    await updateTransactionWithStage(
+      transactionId,
+      PURCHASE_STATUS.PROCESSING,
+      paymentStatus === 'COMPLETED' ? PURCHASE_SUBSTATUS.PAYMENT_SUCCESS : PURCHASE_SUBSTATUS.PAYMENT_FAILED,
+      paymentStatus === 'COMPLETED' ? 3 : 2, // Stage 3 for successful payment, Stage 2 for failed
+      { 
+        paymentResponse: body,
+        paymentCompletedAt: paymentStatus === 'COMPLETED' ? new Date() : null,
+        paymentFailedAt: paymentStatus !== 'COMPLETED' ? new Date() : null
+      }
+    );
+    
+    // If payment failed, return early
+    if (paymentStatus !== 'COMPLETED') {
+      logger.info(`Payment failed for transaction ${transactionId}: ${paymentStatus}`);
+      return { success: false, message: 'Payment failed', transactionId };
+    }
+    
+    // Get the appropriate processor for this SPU type
+    return await processTransaction(transaction, headers, body);
+  } catch (error) {
+    logger.error(`Webhook processing error: ${error.message}`, error);
+    throw createHttpError(
+      error.statusCode || 500,
+      `Failed to process webhook: ${error.message}`
+    );
   }
 };
 
-async function fetchTransactionForOrderId(orderId) {
-  const transaction = await db.findOne("transactions", { orderId });
-  if (!transaction) {
-    throw createHttpError(404, "Transaction not found");
+/**
+ * Process transaction based on SPU type - uses dynamic processor lookup
+ * @param {Object} transaction Transaction object
+ * @param {Object} headers Request headers
+ * @param {Object} body Webhook payload
+ * @returns {Promise<Object>} Processing result
+ */
+async function processTransaction(transaction, headers, body) {
+  const { transactionId, spuType } = transaction;
+  
+  try {
+    // Get processor based on SPU type
+    const processor = getTransactionProcessor(spuType);
+
+    
+    if (!processor) {
+      throw createHttpError(400, `No processor found for SPU type: ${spuType}`);
+    }
+    
+    // Process the transaction
+    return await processor(headers, body, transaction);
+  } catch (error) {
+    logger.error(`Error processing transaction ${transactionId}: ${error.message}`);
+    
+    // Update transaction status on error
+    await updateTransactionWithStage(
+      transactionId,
+      PURCHASE_STATUS.FAILED,
+      PURCHASE_SUBSTATUS.VENDOR_FAILED,
+      3, // Failed at stage 3 (vendor processing)
+      { error: error.message }
+    );
+    
+    throw error;
   }
-  return transaction;
 }
 
-async function processMerchPurchase(webhookData, transaction) {
-  // Process merchandise purchase logic here
+/**
+ * Get the appropriate transaction processor for an SPU type
+ * This acts as a registry of processors that can be extended
+ * without modifying the webhook handler
+ * @param {string} spuType Type of SPU
+ * @returns {Function} Processor function
+ */
+function getTransactionProcessor(spuType) {
+  // Processor registry - can be extended without changing webhook code
+  const processors = {
+    [SPU_TYPES.MERCH]: processMerchPurchase,
+    [SPU_TYPES.IGT]: queueInGameItemPurchase,
+    // Add new SPU types here without changing webhook code
+    // [SPU_TYPES.SUBSCRIPTION]: processSubscriptionPurchase,
+    // [SPU_TYPES.GIFT_CARD]: processGiftCardPurchase,
+  };
+  
+  return processors[spuType];
 }
 
-async function processInGameItemPurchase(headers, body, transaction) {
-  const callbackResponse = await phonePeAdapter.validateCallback(
-    headers.authorization,
-    body
-  );
+/**
+ * Process merchandise purchase
+ * @param {Object} headers Request headers
+ * @param {Object} body Webhook payload
+ * @param {Object} transaction Transaction object
+ * @returns {Promise<Object>} Processing result
+ */
+async function processMerchPurchase(headers, body, transaction) {
+  const { transactionId } = transaction;
+  
+  try {
+    // Implement merchandise processing here
+    // For now, we'll mark it as completed since merch doesn't need vendor processing
+    
+    // Update transaction status
+    await updateTransactionWithStage(
+      transactionId,
+      PURCHASE_STATUS.SUCCESS,
+      PURCHASE_SUBSTATUS.ORDER_PLACED,
+      4, // Stage 4 - Completed
+      { 
+        completedAt: new Date(),
+        fulfillmentDetails: {
+          orderedAt: new Date(),
+          status: 'PROCESSING'
+        }
+      }
+    );
+    
+    return {
+      success: true,
+      message: 'Merchandise order processed',
+      transactionId
+    };
+  } catch (error) {
+    logger.error(`Error processing merch purchase for ${transactionId}: ${error.message}`);
+    throw error;
+  }
+}
 
-  const orderId = callbackResponse.payload.orderId;
-  const state = callbackResponse.payload.state;
+/**
+ * Queue in-game item purchase for processing by vendor API
+ * @param {Object} headers Request headers
+ * @param {Object} body Webhook payload
+ * @param {Object} transaction Transaction object
+ * @returns {Promise<Object>} Processing result
+ */
+async function queueInGameItemPurchase(headers, body, transaction) {
+  const transactionId = transaction.transactionId;
+  
+  try {
+    // Import vendor queue utility
+    const vendorQueue = require('../utils/vendorQueue');
+    
+    // Add to vendor API queue for pack purchase
+    const job = await vendorQueue.addJob('place-order', {
+      transactionId,
+      headers,
+      body,
+      timestamp: new Date()
+    }, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000
+      }
+    });
 
-  if (await hasSufficientSmileCoin()) {
-    // Process in-game item purchase logic here
+    logger.info(`Queued vendor API call for transaction ${transactionId}, job ID: ${job.id}`);
+    
+    // Update transaction status to reflect queued state
+    await updateTransactionWithStage(
+      transactionId,
+      PURCHASE_STATUS.PROCESSING,
+      PURCHASE_SUBSTATUS.VENDOR_QUEUED,
+      3, // Stage 3 - Vendor processing
+      { queuedAt: new Date() }
+    );
+    
+    return { 
+      success: true, 
+      message: 'Payment processed, pack purchase queued',
+      transactionId
+    };
+  } catch (queueError) {
+    logger.error(`Failed to queue vendor API call: ${queueError.message}`);
+    
+    // Update transaction status to reflect queue failure
+    await updateTransactionWithStage(
+      transactionId,
+      PURCHASE_STATUS.FAILED,
+      PURCHASE_SUBSTATUS.VENDOR_FAILED,
+      3, // Failed at stage 3
+      { error: `Queue failure: ${queueError.message}` }
+    );
+    
+    throw createHttpError(500, `Failed to queue vendor API call: ${queueError.message}`);
   }
 }
 

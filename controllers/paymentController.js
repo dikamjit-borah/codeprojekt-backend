@@ -22,7 +22,6 @@ const purchaseSPU = async (req, res, next) => {
 
 const processPhonePeWebhook = async (req, res, next) => {
   try {
-    logger.info(req.body, "Processing PhonePe webhook");
     await paymentService.processPhonePeWebhook(req.headers, req.body);
     res.success(200, "Webhook processed successfully");
   } catch (error) {
