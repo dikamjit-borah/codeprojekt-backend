@@ -199,6 +199,8 @@ const processPhonePeWebhook = async (headers, body) => {
         paymentFailedAt: paymentStatus !== 'COMPLETED' ? new Date() : null
       }
     );
+
+
     
     // If payment failed, return early
     if (paymentStatus !== 'COMPLETED') {
@@ -413,6 +415,7 @@ async function getTransactionStatus(transactionId) {
       status: transaction.status,
       subStatus: transaction.subStatus,
       stage,
+      price_inr: transaction.spuDetails.price_inr,
       spuId: transaction.spuId,
       spuType: transaction.spuType,
       spuDetails: transaction.spuDetails,
