@@ -23,6 +23,8 @@ const purchaseSPU = async (
   const transactionId = UUID.v4();
 
   try {
+    logger.info(`Initiating purchase for SPU ${spuId}, transaction ${transactionId}, type ${spuType}, amount in INR ${spuDetails.price_inr}`);
+
     const additionalFields = await validateSPUType(
       spuType,
       spuDetails,
@@ -43,9 +45,10 @@ const purchaseSPU = async (
 
     let gatewayResponse;
     try {
+      const priceInPaise = Math.round(spuDetails.price_inr * 100); // Convert INR to paise
       gatewayResponse = await initiateGatewayPayment(
         `${spuId}-${transactionId}`,
-        spuDetails.price, statusPageRedirectUrl
+        priceInPaise, statusPageRedirectUrl
       );
     } catch (gatewayError) {
       await updateTransactionStatus(
@@ -111,11 +114,11 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
     return false; // Assume insufficient balance on error
   }
 }
-async function initiateGatewayPayment(merchantOrderId, amount, statusPageRedirectUrl) {
+async function initiateGatewayPayment(merchantOrderId, amountInPaise, statusPageRedirectUrl) {
   try {
     const response = await phonePeAdapter.pay({
       merchantOrderId,
-      amount,
+      amount: amountInPaise,
       statusPageRedirectUrl,
     });
     return response;
@@ -185,7 +188,6 @@ const processPhonePeWebhook = async (headers, body) => {
     }
     
     
-    // To do: Need to correct the structure
     await updateTransactionWithStage(
       transactionId,
       PURCHASE_STATUS.PROCESSING,
@@ -380,9 +382,11 @@ async function getTransactionStatus(transactionId) {
       throw createHttpError(404, "Transaction not found");
     }
 
+    logger.info(`Fetched status for transaction ${transactionId}: ${transaction.status}, subStatus: ${transaction.subStatus}`);
+
     // Calculate stage based on status and substatus
     let stage = 1;
-    if (transaction.status === PURCHASE_STATUS.PENDING) {
+    if ([PURCHASE_STATUS.PENDING, PURCHASE_STATUS.PROCESSING].includes(transaction.status)) {
       switch (transaction.subStatus) {
         case PURCHASE_SUBSTATUS.ORDER_INITIATED:
           stage = 1;
@@ -393,6 +397,8 @@ async function getTransactionStatus(transactionId) {
           break;
         case PURCHASE_SUBSTATUS.PAYMENT_SUCCESS:
         case PURCHASE_SUBSTATUS.ORDER_PLACED:
+        case PURCHASE_SUBSTATUS.VENDOR_QUEUED:
+        case PURCHASE_SUBSTATUS.VENDOR_PROCESSING:
           stage = 3;
           break;
       }
@@ -429,8 +435,7 @@ async function updateTransactionWithStage(transactionId, status, subStatus, stag
       { 
         $set: { 
           status, 
-          subStatus, 
-          stage,
+          subStatus,
           updatedAt: new Date(),
           ...otherFields 
         } 

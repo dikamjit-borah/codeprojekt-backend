@@ -7,7 +7,6 @@ const {
   requestIdMiddleware,
   responseFormatter,
 } = require("./middlewares/requestHandler");
-const {checkRedisAvailability}  = require("./utils/redisCheck");
 const logger = require("./utils/logger");
 
 dotenv.config();
