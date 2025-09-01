@@ -7,10 +7,7 @@ const logger = require("../utils/logger");
 class MongoDB {
   constructor() {
     this.connectionString = connectionString;
-    this.client = new MongoClient(this.connectionString, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    this.client = new MongoClient(this.connectionString);
     this.db = null;
   }
 
