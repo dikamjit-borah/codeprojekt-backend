@@ -16,16 +16,7 @@ async function checkRedisAvailability() {
     logger.info(`Checking Redis at ${redisConfig.host}:${redisConfig.port}`);
 
     // Create Redis client with modern configuration
-    client = redis.createClient({
-      socket: {
-        host: redisConfig.host,
-        port: redisConfig.port,
-        connectTimeout: 3000,
-      },
-      password: redisConfig.password,
-      database: redisConfig.db || 0,
-    });
-
+    client = redis.createClient(redisConfig);
     // Connect to Redis
     await client.connect();
     logger.info('Redis connected successfully');
