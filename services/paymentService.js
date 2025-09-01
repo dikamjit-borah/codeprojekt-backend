@@ -18,12 +18,18 @@ const purchaseSPU = async (
   spuType,
   userDetails,
   playerDetails,
-  statusPageRedirectUrl
+  redirectUrl
 ) => {
   const transactionId = UUID.v4();
 
   try {
-    logger.info(`Initiating purchase for SPU ${spuId}, transaction ${transactionId}, type ${spuType}, amount in INR ${spuDetails.price_inr}`);
+
+    logger.info("Initiating purchase", {
+      spuId,
+      transactionId,
+      spuType,
+      amountInINR: spuDetails.price_inr,
+    });
 
     const additionalFields = await validateSPUType(
       spuType,
@@ -43,24 +49,8 @@ const purchaseSPU = async (
       ...additionalFields,
     });
 
-    let gatewayResponse;
-    try {
-      const priceInPaise = Math.round(spuDetails.price_inr * 100); // Convert INR to paise
-      gatewayResponse = await initiateGatewayPayment(
-        `${spuId}-${transactionId}`,
-        priceInPaise, statusPageRedirectUrl
-      );
-    } catch (gatewayError) {
-      await updateTransactionStatus(
-        transactionId,
-        PURCHASE_STATUS.FAILED,
-        PURCHASE_SUBSTATUS.GATEWAY_FAILED
-      );
-      throw createHttpError(
-        502,
-        `Payment gateway initiation failed: ${gatewayError.message}`
-      );
-    }
+    let gatewayResponse = initiateGatewayPayment(`${spuId}-${transactionId}`,
+      spuDetails.price_inr, redirectUrl);
 
     // Update status after successful gateway init
     await updateTransactionStatus(
@@ -72,7 +62,7 @@ const purchaseSPU = async (
 
     return {
       transactionId,
-      phonePayRedirectUrl: gatewayResponse.redirectUrl,
+      gatewayRedirectUrl: gatewayResponse.redirectUrl,
     };
   } catch (error) {
     throw createHttpError(
@@ -99,7 +89,7 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
   }
 }
 
-  async function hasSufficientSmileCoin(spuDetails) {
+async function hasSufficientSmileCoin(spuDetails) {
   try {
     const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
     const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
@@ -114,16 +104,23 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
     return false; // Assume insufficient balance on error
   }
 }
-async function initiateGatewayPayment(merchantOrderId, amountInPaise, statusPageRedirectUrl) {
+async function initiateGatewayPayment(merchantOrderId, priceInInr, redirectUrl) {
   try {
+    const priceInPaisa = Math.round(priceInInr * 100); // Convert INR to paise
     const response = await phonePeAdapter.pay({
       merchantOrderId,
-      amount: amountInPaise,
-      statusPageRedirectUrl,
+      amount: priceInPaisa,
+      redirectUrl,
     });
+
     return response;
   } catch (error) {
     logger.error(`Failed to initiate gateway payment: ${error.message}`);
+    await updateTransactionStatus(
+      transactionId,
+      PURCHASE_STATUS.FAILED,
+      PURCHASE_SUBSTATUS.GATEWAY_FAILED
+    );
     throw createHttpError(502, `Payment gateway initiation failed: ${error.message}`);
   }
 }
@@ -154,12 +151,12 @@ const processPhonePeWebhook = async (headers, body) => {
       headers.authorization,
       body
     );
-    
+
     if (!isValid) {
       logger.error('Invalid PhonePe webhook signature');
       throw createHttpError(401, 'Invalid webhook signature');
     }
-    
+
     // Extract order ID and payment status from the payload
     const merchantOrderId = body.payload.merchantOrderId;
     const paymentStatus = body.payload.state;
@@ -167,11 +164,11 @@ const processPhonePeWebhook = async (headers, body) => {
     logger.info(`Received PhonePe webhook for order ${merchantOrderId} with status ${paymentStatus}`);
 
     // return body.payload;
-    
+
     if (!merchantOrderId) {
       throw createHttpError(400, 'Missing merchant order ID in webhook payload');
     }
-    
+
     // Extract transaction ID from merchant order ID (format: spuId-transactionId)
     const parts = merchantOrderId.split('-');
     const spuId = parts[0]; // 'test'
@@ -180,20 +177,20 @@ const processPhonePeWebhook = async (headers, body) => {
     if (!transactionId) {
       throw createHttpError(400, `Invalid merchant order ID format: ${merchantOrderId}`);
     }
-    
+
     // Fetch transaction
     const transaction = await db.findOne("transactions", { transactionId });
     if (!transaction) {
       throw createHttpError(404, `Transaction not found for ID: ${transactionId}`);
     }
-    
-    
+
+
     await updateTransactionWithStage(
       transactionId,
       PURCHASE_STATUS.PROCESSING,
       paymentStatus === 'COMPLETED' ? PURCHASE_SUBSTATUS.PAYMENT_SUCCESS : PURCHASE_SUBSTATUS.PAYMENT_FAILED,
       paymentStatus === 'COMPLETED' ? 3 : 2, // Stage 3 for successful payment, Stage 2 for failed
-      { 
+      {
         paymentResponse: body,
         paymentCompletedAt: paymentStatus === 'COMPLETED' ? new Date() : null,
         paymentFailedAt: paymentStatus !== 'COMPLETED' ? new Date() : null
@@ -201,13 +198,13 @@ const processPhonePeWebhook = async (headers, body) => {
     );
 
 
-    
+
     // If payment failed, return early
     if (paymentStatus !== 'COMPLETED') {
       logger.info(`Payment failed for transaction ${transactionId}: ${paymentStatus}`);
       return { success: false, message: 'Payment failed', transactionId };
     }
-    
+
     // Get the appropriate processor for this SPU type
     return await processTransaction(transaction, headers, body);
   } catch (error) {
@@ -228,21 +225,21 @@ const processPhonePeWebhook = async (headers, body) => {
  */
 async function processTransaction(transaction, headers, body) {
   const { transactionId, spuType } = transaction;
-  
+
   try {
     // Get processor based on SPU type
     const processor = getTransactionProcessor(spuType);
 
-    
+
     if (!processor) {
       throw createHttpError(400, `No processor found for SPU type: ${spuType}`);
     }
-    
+
     // Process the transaction
     return await processor(headers, body, transaction);
   } catch (error) {
     logger.error(`Error processing transaction ${transactionId}: ${error.message}`);
-    
+
     // Update transaction status on error
     await updateTransactionWithStage(
       transactionId,
@@ -251,7 +248,7 @@ async function processTransaction(transaction, headers, body) {
       3, // Failed at stage 3 (vendor processing)
       { error: error.message }
     );
-    
+
     throw error;
   }
 }
@@ -272,7 +269,7 @@ function getTransactionProcessor(spuType) {
     // [SPU_TYPES.SUBSCRIPTION]: processSubscriptionPurchase,
     // [SPU_TYPES.GIFT_CARD]: processGiftCardPurchase,
   };
-  
+
   return processors[spuType];
 }
 
@@ -285,18 +282,18 @@ function getTransactionProcessor(spuType) {
  */
 async function processMerchPurchase(headers, body, transaction) {
   const { transactionId } = transaction;
-  
+
   try {
     // Implement merchandise processing here
     // For now, we'll mark it as completed since merch doesn't need vendor processing
-    
+
     // Update transaction status
     await updateTransactionWithStage(
       transactionId,
       PURCHASE_STATUS.SUCCESS,
       PURCHASE_SUBSTATUS.ORDER_PLACED,
       4, // Stage 4 - Completed
-      { 
+      {
         completedAt: new Date(),
         fulfillmentDetails: {
           orderedAt: new Date(),
@@ -304,7 +301,7 @@ async function processMerchPurchase(headers, body, transaction) {
         }
       }
     );
-    
+
     return {
       success: true,
       message: 'Merchandise order processed',
@@ -325,11 +322,11 @@ async function processMerchPurchase(headers, body, transaction) {
  */
 async function queueInGameItemPurchase(headers, body, transaction) {
   const transactionId = transaction.transactionId;
-  
+
   try {
     // Import vendor queue utility
     const vendorQueue = require('../providers/queue');
-    
+
     // Add to vendor API queue for pack purchase
     const job = await vendorQueue.addJob('place-order', {
       transactionId,
@@ -345,7 +342,7 @@ async function queueInGameItemPurchase(headers, body, transaction) {
     });
 
     logger.info(`Queued vendor API call for transaction ${transactionId}, job ID: ${job.id}`);
-    
+
     // Update transaction status to reflect queued state
     await updateTransactionWithStage(
       transactionId,
@@ -354,15 +351,15 @@ async function queueInGameItemPurchase(headers, body, transaction) {
       3, // Stage 3 - Vendor processing
       { queuedAt: new Date() }
     );
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       message: 'Payment processed, pack purchase queued',
       transactionId
     };
   } catch (queueError) {
     logger.error(`Failed to queue vendor API call: ${queueError.message}`);
-    
+
     // Update transaction status to reflect queue failure
     await updateTransactionWithStage(
       transactionId,
@@ -371,7 +368,7 @@ async function queueInGameItemPurchase(headers, body, transaction) {
       3, // Failed at stage 3
       { error: `Queue failure: ${queueError.message}` }
     );
-    
+
     throw createHttpError(500, `Failed to queue vendor API call: ${queueError.message}`);
   }
 }
@@ -379,7 +376,7 @@ async function queueInGameItemPurchase(headers, body, transaction) {
 async function getTransactionStatus(transactionId) {
   try {
     const transaction = await db.findOne("transactions", { transactionId });
-    
+
     if (!transaction) {
       throw createHttpError(404, "Transaction not found");
     }
@@ -394,7 +391,7 @@ async function getTransactionStatus(transactionId) {
           stage = 1;
           break;
         case PURCHASE_SUBSTATUS.GATEWAY_INITIATED:
-        case PURCHASE_SUBSTATUS.PAYMENT_IN_PROGRESS:
+        case PURCHASE_SUBSTATUS.PAYMENT_INITIATED:
           stage = 2;
           break;
         case PURCHASE_SUBSTATUS.PAYMENT_SUCCESS:
@@ -435,16 +432,16 @@ async function updateTransactionWithStage(transactionId, status, subStatus, stag
     await db.updateOne(
       "transactions",
       { transactionId },
-      { 
-        $set: { 
-          status, 
+      {
+        $set: {
+          status,
           subStatus,
           updatedAt: new Date(),
-          ...otherFields 
-        } 
+          ...otherFields
+        }
       }
     );
-    
+
     // Emit socket event for real-time updates
     const socketEmitter = require("../providers/socket");
     if (socketEmitter.initialized) {
@@ -455,8 +452,8 @@ async function updateTransactionWithStage(transactionId, status, subStatus, stag
         ...otherFields
       });
     }
-    
-    logger.info(`Transaction ${transactionId} updated to stage ${stage}, status: ${status}, subStatus: ${subStatus}`);
+
+    logger.info(`Transaction update`, { transactionId, stage, status, subStatus, ...otherFields });
   } catch (error) {
     logger.error(`Failed to update transaction: ${error.message}`);
     throw error;
