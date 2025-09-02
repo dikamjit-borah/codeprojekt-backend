@@ -33,7 +33,7 @@ app.use("/health", require("./routes/health"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error(
+  logger.error(err.message ?? "Internal Server Error",
     {
       requestId: req.requestId,
       error: err.message,
@@ -42,7 +42,7 @@ app.use((err, req, res, next) => {
       url: req.originalUrl,
       ip: req.ip,
     },
-    err.message ?? "Internal Server Error"
+
   );
 
   res.status(err.status || 500).json({
@@ -57,9 +57,7 @@ async function initializeApp() {
     const db = require("./providers/mongo");
     await db.connect();
 
-    const queue = require('./providers/queueWorker');
-    queue.initializeQueueWorker();
-    logger.info('Queue worker initialized successfully');
+    require('./providers/queue.worker'); // Initialize queue worker
 
     return true;
   } catch (error) {
