@@ -110,7 +110,7 @@ Comprehensive transaction lifecycle management:
 | SPU Type | Description                                         |
 |----------|-----------------------------------------------------|
 | MERCH    | Physical merchandise to be shipped to the customer  |
-| IGT      | In-game tokens or items fulfilled through SmileOne  |
+| GAME_ITEM      | In-game tokens or items fulfilled through SmileOne  |
 
 ## Transaction Statuses
 

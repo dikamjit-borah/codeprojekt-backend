@@ -27,9 +27,17 @@ const PURCHASE_SUBSTATUS = {
   USER_CANCELLED: "user_cancelled", // User backed out / abandoned checkout.
 };
 
+const PHONE_PE_WEBHOOK_TYPES = {
+  ORDER_COMPLETED: "CHECKOUT_ORDER_COMPLETED",	// The payment was successfully completed
+  ORDER_FAILED: "CHECKOUT_ORDER_FAILED",	// The payment failed
+  REFUND_COMPLETED: "PG_REFUND_COMPLETED",	// A refund was successfully processed
+  REFUND_FAILED: "PG_REFUND_FAILED",	// A refund request failed
+  REFUND_ACCEPTED: "PG_REFUND_ACCEPTED"	// PhonePe Payment Gateway acknowledged the refund request, but it’s not completed yet
+}
+
 const SPU_TYPES = {
   MERCH: "merchandise",
-  IGT: "inGameItem",
+  GAME_ITEM: "inGameItem",
 };
 
 // Export all constants
@@ -37,4 +45,5 @@ module.exports = {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
   SPU_TYPES,
+  PHONE_PE_WEBHOOK_TYPES
 };

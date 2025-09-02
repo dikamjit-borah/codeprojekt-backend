@@ -54,7 +54,7 @@
   - [ ] Debug current pack selection mechanism
   - [ ] Review SPU (Stock Product Unit) integration
   - [ ] Fix any data mapping or validation issues
-  - [ ] Test different product types (IGT, MERCH)
+  - [ ] Test different product types (GAME_ITEM, MERCH)
 - [ ] **Improve pack selection UI/UX**
   - [ ] Create clear product information display
   - [ ] Add pricing and currency information
