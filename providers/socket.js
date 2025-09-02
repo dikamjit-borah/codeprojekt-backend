@@ -1,5 +1,5 @@
 const socketIO = require('socket.io');
-const logger = require('./logger');
+const logger = require('../utils/logger');
 
 class SocketEmitter {
   constructor() {
@@ -84,6 +84,16 @@ class SocketEmitter {
    */
   emitTransactionUpdate(transactionId, data) {
     this.emit('transaction-update', data, `transaction:${transactionId}`);
+    
+    // Also emit stage-specific event for frontend compatibility
+    if (data.stage) {
+      this.emit('transaction-stage', { 
+        transactionId, 
+        stage: data.stage,
+        status: data.status,
+        subStatus: data.subStatus 
+      }, `transaction:${transactionId}`);
+    }
   }
 }
 

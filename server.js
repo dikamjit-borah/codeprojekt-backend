@@ -1,9 +1,8 @@
 require("dotenv").config();
-
+const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const dotenv = require("dotenv");
 const {
   requestIdMiddleware,
   responseFormatter,
@@ -11,7 +10,6 @@ const {
 const logger = require("./utils/logger");
 
 dotenv.config();
-
 const app = express();
 
 // Security middleware
@@ -53,12 +51,41 @@ app.use((err, req, res, next) => {
   });
 });
 const PORT = process.env.PORT || 3000;
-const db = require("./utils/mongo");
-db.connect();
-app.listen(PORT, () => {
-  logger.info(
-    `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
-  );
-  logger.info("Loaded environment variables from .env file:");
-  logger.info(dotenv.config().parsed);
-});
+
+async function initializeApp() {
+  try {
+    const db = require("./providers/mongo");
+    await db.connect();
+
+    const queue = require('./providers/queueWorker');
+    queue.initializeQueueWorker();
+    logger.info('Queue worker initialized successfully');
+
+    return true;
+  } catch (error) {
+    logger.error(`Failed to initialize application: ${error.message}`);
+    return false;
+  }
+}
+
+(async () => {
+  const server = app.listen(PORT, async () => {
+    const initialized = await initializeApp();
+    if (!initialized) {
+      logger.error("Application initialization failed. Shutting down server.");
+      server.close(() => {
+        process.exit(1);
+      });
+    } else {
+      logger.info(
+        `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
+      );
+      logger.info("Loaded environment variables from .env file:");
+      logger.info(dotenv.config().parsed);
+      const socketEmitter = require("./providers/socket");
+      socketEmitter.initialize(server);
+    }
+  });
+})();
+
+

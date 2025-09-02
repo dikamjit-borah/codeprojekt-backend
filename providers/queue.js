@@ -1,6 +1,6 @@
 const Queue = require('bull');
 const config = require('config');
-const logger = require('./logger');
+const logger = require('../utils/logger');
 
 // Create vendor queue with Redis backend
 const vendorQueue = new Queue('vendor-api-calls', {
@@ -11,9 +11,26 @@ const vendorQueue = new Queue('vendor-api-calls', {
       type: 'exponential',
       delay: 5000
     },
-    removeOnComplete: true,
-    removeOnFail: false
+    removeOnComplete: 100, // Keep last 100 completed jobs
+    removeOnFail: 50,      // Keep last 50 failed jobs
   }
+});
+
+// Queue health monitoring
+vendorQueue.on('error', (error) => {
+  logger.error('Queue error:', error);
+});
+
+vendorQueue.on('waiting', (jobId) => {
+  logger.info(`Job ${jobId} is waiting`);
+});
+
+vendorQueue.on('completed', (job, result) => {
+  logger.info(`Job ${job.id} completed:`, result);
+});
+
+vendorQueue.on('failed', (job, error) => {
+  logger.error(`Job ${job.id} failed:`, error.message);
 });
 
 /**
