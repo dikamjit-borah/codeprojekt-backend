@@ -166,7 +166,7 @@ Handles fulfillment for physical merchandise purchases.
 
 #### In-Game Item Processing
 \`\`\`javascript
-processInGameItemPurchase(headers, body, transaction)
+processGameItemPurchase(headers, body, transaction)
 \`\`\`
 Handles fulfillment for in-game items and currency:
 1. Validates the callback authenticity

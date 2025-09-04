@@ -2,7 +2,6 @@
 
 const PURCHASE_STATUS = {
   PENDING: "pending",
-  PROCESSING: "processing",
   PAYMENT_COMPLETED: "payment_completed",
   FAILED: "failed",
   SUCCESS: "success",
@@ -22,7 +21,7 @@ const PURCHASE_SUBSTATUS = {
   PAYMENT_SUCCESS: "payment_success", // Payment was successful and verified.
 
   VENDOR_QUEUED: "vendor_queued", // After payment success, when queuing vendor order.
-  VENDOR_PROCESSING: "vendor_processing", // After payment success, when calling vendor API.
+  VENDOR_FAILED: "vendor_failed", // After payment success, when calling vendor API fails.
 
   USER_CANCELLED: "user_cancelled", // User backed out / abandoned checkout.
 };
