@@ -19,8 +19,8 @@ class MongoDB {
         logger.info("MongoDB connected");
       } catch (error) {
         logger.error(
+          "Failed to connect to MongoDB",
           { error: error.message, stack: error.stack },
-          "Failed to connect to MongoDB"
         );
       }
     }

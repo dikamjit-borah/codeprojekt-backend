@@ -1,7 +1,7 @@
-const socketIO = require('socket.io');
-const logger = require('../utils/logger');
+const socketIO = require("socket.io");
+const logger = require("../utils/logger");
 
-class SocketEmitter {
+class Socket {
   constructor() {
     this.io = null;
     this.initialized = false;
@@ -19,34 +19,38 @@ class SocketEmitter {
     try {
       this.io = socketIO(server, {
         cors: {
-          origin: '*', // Configure as needed for production
-          methods: ['GET', 'POST']
-        }
+          origin: "*", // Configure as needed for production
+          methods: ["GET", "POST"],
+        },
       });
 
-      this.io.on('connection', (socket) => {
+      this.io.on("connection", (socket) => {
         logger.info(`Socket connected: ${socket.id}`);
-        
+
         // Handle transaction subscriptions
-        socket.on('subscribe-transaction', (transactionId) => {
-          logger.debug(`Socket ${socket.id} subscribed to transaction ${transactionId}`);
+        socket.on("subscribe-transaction", (transactionId) => {
+          logger.debug(
+            `Socket ${socket.id} subscribed to transaction ${transactionId}`
+          );
           socket.join(`transaction:${transactionId}`);
         });
-        
+
         // Handle unsubscribe
-        socket.on('unsubscribe-transaction', (transactionId) => {
-          logger.debug(`Socket ${socket.id} unsubscribed from transaction ${transactionId}`);
+        socket.on("unsubscribe-transaction", (transactionId) => {
+          logger.debug(
+            `Socket ${socket.id} unsubscribed from transaction ${transactionId}`
+          );
           socket.leave(`transaction:${transactionId}`);
         });
-        
+
         // Handle disconnect
-        socket.on('disconnect', () => {
+        socket.on("disconnect", () => {
           logger.info(`Socket disconnected: ${socket.id}`);
         });
       });
 
       this.initialized = true;
-      logger.info('Socket.IO server initialized');
+      logger.info("Socket.IO server initialized");
     } catch (error) {
       logger.error(`Failed to initialize Socket.IO: ${error.message}`);
     }
@@ -76,27 +80,7 @@ class SocketEmitter {
       logger.error(`Failed to emit ${event}: ${error.message}`);
     }
   }
-
-  /**
-   * Emit transaction-specific event
-   * @param {string} transactionId Transaction ID
-   * @param {Object} data Event data
-   */
-  emitTransactionUpdate(transactionId, data) {
-    this.emit('transaction-update', data, `transaction:${transactionId}`);
-    
-    // Also emit stage-specific event for frontend compatibility
-    if (data.stage) {
-      this.emit('transaction-stage', { 
-        transactionId, 
-        stage: data.stage,
-        status: data.status,
-        subStatus: data.subStatus 
-      }, `transaction:${transactionId}`);
-    }
-  }
 }
 
 // Export singleton instance
-const socketEmitter = new SocketEmitter();
-module.exports = socketEmitter;
+module.exports = new Socket();

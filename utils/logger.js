@@ -48,14 +48,16 @@ function getCaller() {
   return '';
 }
 
-// Helper function to create log methods
+// Updated helper function to log message first and objects afterward
 function createLogMethod(level) {
   return (msg, ...args) => {
     const caller = getCaller();
-    if (typeof msg === 'object') {
-      baseLogger[level](msg, ...args);
+    if (typeof msg === 'string') {
+      // Combine the message and additional arguments into one object for pino
+      baseLogger[level]({ caller, ...args[0] }, msg);
     } else {
-      baseLogger[level](`${caller} ${msg}`, ...args);
+      // If the first argument is not a string, treat it as the main log message
+      baseLogger[level]({ caller }, msg, ...args);
     }
   };
 }
