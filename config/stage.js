@@ -22,12 +22,10 @@ module.exports = {
     merchantPassword: process.env.TEST_PHONEPE_MERCHANT_PASSWORD,
   },
   redis: {
-    socket: {
-      host: process.env.REDIS_HOST,
-      port: 6379,
-      connectTimeout: 3000,
-      tls: true,
-    },
+    host: process.env.REDIS_HOST,
+    port: 6379,
+    connectTimeout: 3000,
+    tls: true,
     username: process.env.REDIS_USERNAME,
     password: process.env.REDIS_PASSWORD,
     database: process.env.REDIS_DB || 0,
