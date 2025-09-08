@@ -24,6 +24,7 @@ const purchaseSPU = async (
   redirectUrl
 ) => {
   const transactionId = UUID.v4();
+  const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
 
   try {
     logger.info("Initiating purchase", {
@@ -46,6 +47,7 @@ const purchaseSPU = async (
       spuDetails,
       spuType,
       userDetails,
+      redirectUrl: redirectUrlWithTransactionId,
       status: PURCHASE_STATUS.PENDING,
       subStatus: PURCHASE_SUBSTATUS.ORDER_INITIATED,
       ...additionalFields,
@@ -54,7 +56,7 @@ const purchaseSPU = async (
     let gatewayResponse = await initiateGatewayPayment(
       `${spuId}-${transactionId}`,
       spuDetails.price_inr,
-      redirectUrl
+      redirectUrlWithTransactionId
     );
 
     // Update status after successful gateway init
@@ -229,7 +231,7 @@ const processPhonePeWebhook = async (headers, body) => {
       );
       return;
     }
-
+    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
     // process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);
   } catch (error) {
@@ -298,6 +300,9 @@ async function processMerchPurchase(transactionId) {
     PURCHASE_STATUS.SUCCESS,
     PURCHASE_SUBSTATUS.ORDER_PLACED
   );
+  socket.emit('transaction-update', {
+    transactionId, status: PURCHASE_STATUS.SUCCESS, subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED
+  }, `transaction:${transactionId}`);
 }
 
 /**
@@ -321,8 +326,67 @@ async function queueGameItemPurchase(transactionId, parsedWebhook) {
   await updateTransactionStatus(
     transactionId,
     PURCHASE_STATUS.PAYMENT_COMPLETED,
-    PURCHASE_SUBSTATUS.VENDOR_QUEUED,
+    PURCHASE_SUBSTATUS.VENDOR_QUEUED
   );
+}
+
+/**
+ * Process vendor pack purchase using SmileOne adapter
+ * @param {Object} transaction Transaction object
+ * @returns {Promise<Object>} Processing result
+ */
+async function processGameItemPurchase(transaction) {
+  const { transactionId, spuDetails, playerDetails, spuId } = transaction;
+
+  try {
+    logger.info(
+      `Processing vendor purchase for transaction ${transactionId} of spuId ${spuId}`
+    );
+
+    // Call SmileOne API to place order
+    const vendorResponse = await smileOneAdapter.placeOrder(
+      spuDetails.product,
+      spuId,
+      playerDetails.userid,
+      playerDetails.zoneid
+    );
+    let status, subStatus;
+    if (vendorResponse.status == 200) {
+      logger.info(
+        `Vendor order placed successfully for transaction ${transactionId}`
+      );
+      status = PURCHASE_STATUS.SUCCESS;
+      subStatus = PURCHASE_SUBSTATUS.ORDER_PLACED;
+    } else {
+      logger.info(
+        `Vendor order failed for transaction ${transactionId}`
+      );
+      status = PURCHASE_STATUS.FAILED;
+      subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
+    }
+    await updateTransactionStatus(transactionId, status, subStatus, { vendorResponse });
+    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
+
+
+    return {
+      success: true,
+      transactionId,
+      orderPlaced: true,
+      vendorResponse,
+    };
+  } catch (error) {
+    logger.error(
+      `Error creating vendor order for transaction ${transactionId}: ${error.message}`
+    );
+    await updateTransactionStatus(
+      transactionId,
+      PURCHASE_STATUS.FAILED,
+      PURCHASE_SUBSTATUS.VENDOR_FAILED,
+      {
+        error: error.message,
+      }
+    );
+  }
 }
 
 async function getTransactionStatus(transactionId) {
@@ -339,11 +403,7 @@ async function getTransactionStatus(transactionId) {
 
     // Calculate stage based on status and substatus
     let stage = 1;
-    if (
-      [PURCHASE_STATUS.PENDING].includes(
-        transaction.status
-      )
-    ) {
+    if ([PURCHASE_STATUS.PENDING].includes(transaction.status)) {
       switch (transaction.subStatus) {
         case PURCHASE_SUBSTATUS.ORDER_INITIATED:
           stage = 1;
@@ -355,7 +415,7 @@ async function getTransactionStatus(transactionId) {
         case PURCHASE_SUBSTATUS.PAYMENT_SUCCESS:
         case PURCHASE_SUBSTATUS.ORDER_PLACED:
         case PURCHASE_SUBSTATUS.VENDOR_QUEUED:
-        case PURCHASE_SUBSTATUS.VENDOR_PROCESSING:
+        case PURCHASE_SUBSTATUS.VENDOR_FAILED:
           stage = 3;
           break;
       }
@@ -427,100 +487,6 @@ async function updateTransactionWithStage(
   } catch (error) {
     logger.error(`Failed to update transaction: ${error.message}`);
     throw error;
-  }
-}
-
-/**
- * Process vendor pack purchase using SmileOne adapter
- * @param {Object} transaction Transaction object
- * @returns {Promise<Object>} Processing result
- */
-async function processGameItemPurchase(transaction) {
-  const { transactionId, spuDetails, playerDetails, spuId } = transaction;
-
-  try {
-    logger.info(
-      `Processing vendor purchase for transaction ${transactionId} of spuId ${spuId}`
-    );
-
-    // Call SmileOne API to place order
-    const vendorResponse = await smileOneAdapter.placeOrder(
-      spuDetails.product,
-      spuId,
-      playerDetails.userid,
-      playerDetails.zoneid
-    );
-
-    if (vendorResponse.status == 200) {
-      logger.info(
-        `Vendor order placed successfully for transaction ${transactionId}`
-      );
-      await updateTransactionStatus(
-        transactionId,
-        PURCHASE_STATUS.SUCCESS,
-        PURCHASE_SUBSTATUS.ORDER_PLACED,
-        {
-          vendorResponse,
-        }
-      );
-    } else {
-      await updateTransactionStatus(
-        transactionId,
-        PURCHASE_STATUS.FAILED,
-        PURCHASE_SUBSTATUS.VENDOR_FAILED,
-        {
-          vendorResponse,
-        }
-      );
-    }
-
-    // Emit socket update for completion
-    await emitTransactionUpdate(transactionId, {
-      status: PURCHASE_STATUS.SUCCESS,
-      subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED,
-      stage: 4,
-      message: `Successfully placed order for ${spuDetails.name || "Gaming Pack"
-        }!`,
-    });
-
-    return {
-      success: true,
-      transactionId,
-      orderPlaced: true,
-      vendorResponse,
-    };
-  } catch (error) {
-    logger.error(
-      `Error creating vendor order for transaction ${transactionId}: ${error.message}`
-    );
-    await updateTransactionStatus(
-      transactionId,
-      PURCHASE_STATUS.FAILED,
-      PURCHASE_SUBSTATUS.VENDOR_FAILED,
-      {
-        error: error.message,
-      }
-    );
-  }
-}
-
-/**
- * Emit socket update with error handling
- * @param {string} transactionId Transaction ID
- * @param {Object} updateData Update data
- */
-async function emitTransactionUpdate(transactionId, updateData) {
-  try {
-    if (socket && socket.initialized) {
-      socket.emitTransactionUpdate(transactionId, {
-        ...updateData,
-        timestamp: new Date(),
-      });
-    }
-  } catch (error) {
-    logger.warn(
-      `Failed to emit socket update for ${transactionId}: ${error.message}`
-    );
   }
 }
 

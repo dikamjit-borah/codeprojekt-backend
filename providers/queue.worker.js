@@ -43,30 +43,38 @@ queue.process("game-item-purchase", async (job) => {
 });
 
 // Handle successful job completion
-queue.on("completed", (job, result) => {
-  logger.info(`Job ${job.id} completed:`, {
-    transactionId: result.transactionId,
-    success: result.success,
-  });
+queue.on("completed", (job, result = {}) => {
+  const logData = {
+    jobId: job.id,
+    jobName: job.name,
+    data: job.data,
+    result: result
+  };
+  logger.info(`Job ${job.id} completed successfully`, logData);
 });
 
 // Handle job failures
 queue.on("failed", (job, error) => {
-  logger.error(`Job ${job.id} failed permanently:`, {
-    transactionId: job.data.transactionId,
-    error: error.message,
+  const logData = {
+    jobId: job.id,
+    jobName: job.name,
+    data: job.data,
     attempts: job.attemptsMade,
-  });
+    error: error ? error.message || error.toString() : 'Unknown error'
+  };
+  logger.error(`Job ${job.id} failed permanently`, logData);
 });
 
 // Enhanced error handling
-queue.on("error", (job, error) => {
-  logger.error(`Job ${job.id} error:`, {
-    message: error.message,
-    code: error.code,
-    errno: error.errno,
-    syscall: error.syscall,
-    address: error.address,
-    port: error.port,
-  });
+queue.on("error", (error) => {
+  const logData = {
+    error: error ? {
+      message: error.message || error.toString(),
+      ...(error.code && { code: error.code }),
+      ...(error.errno && { errno: error.errno }),
+      ...(error.syscall && { syscall: error.syscall }),
+      stack: error.stack
+    } : 'Unknown error'
+  };
+  logger.error('Queue error occurred', logData);
 });
