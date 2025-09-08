@@ -163,6 +163,7 @@ async function updateTransactionStatus(
  */
 const processPhonePeWebhook = async (headers, body) => {
   try {
+    logger.info("Processing PhonePe webhook", { headers, body });
     //Validate webhook signature
     const parsedWebhook = await phonePeAdapter.validateCallback(
       headers.authorization,
