@@ -1,10 +1,20 @@
 const Queue = require("bull");
 const config = require("config");
 const logger = require("../utils/logger");
+const redis = require("redis");
 
 // Initialize vendor queue with Redis backend
 const queue = new Queue("vendor-api-calls", {
-  redis: config.get("redis"),
+  client: redis.createClient({
+    socket: {
+      host: config.redis.host,
+      port: config.redis.port,
+      connectTimeout: 3000,
+    },
+    username: config.redis.username,
+    password: config.redis.password,
+    database: config.redis.db || 0,
+  }),
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential", delay: 5000 },
