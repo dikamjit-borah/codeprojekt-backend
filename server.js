@@ -78,7 +78,9 @@ async function initializeApp() {
       logger.info(
         `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
       );
-      logger.info("Loaded environment variables from .env file:", {ENV: dotenv.config().parsed});
+      const config = require(`./config/${process.env.NODE_ENV}.js`);
+
+      logger.info("Loaded application configuration", config);
       const socketEmitter = require("./providers/socket");
       socketEmitter.initialize(server);
     }
