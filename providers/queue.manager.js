@@ -3,18 +3,26 @@ const config = require("config");
 const logger = require("../utils/logger");
 const redis = require("redis");
 
+// Debug Redis configuration that Bull will use
+logger.info('Bull Redis Configuration:', {
+  host: config.redis.host,
+  port: config.redis.port,
+  tls: config.redis.tls,
+  database: config.redis.database || 0
+});
+
 // Initialize vendor queue with Redis backend
 const queue = new Queue("vendor-api-calls", {
-  client: redis.createClient({
-    socket: {
-      host: config.redis.host,
-      port: config.redis.port,
-      connectTimeout: 3000,
-    },
+  redis: {
+    port: config.redis.port,
+    host: config.redis.host,
     username: config.redis.username,
     password: config.redis.password,
-    database: config.redis.db || 0,
-  }),
+    tls: config.redis.tls,
+    db: config.redis.database || 0,
+    connectTimeout: 10000,
+    maxRetriesPerRequest: 3,
+  },
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential", delay: 5000 },
