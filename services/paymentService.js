@@ -13,6 +13,7 @@ const {
 const logger = require("../utils/logger");
 const queueManager = require("../providers/queue.manager");
 const socket = require("../providers/socket");
+const { get } = require("lodash");
 
 const purchaseSPU = async (
   spuId,
