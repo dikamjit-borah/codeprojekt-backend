@@ -1,9 +1,8 @@
 require("dotenv").config();
-
+const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const dotenv = require("dotenv");
 const {
   requestIdMiddleware,
   responseFormatter,
@@ -11,7 +10,6 @@ const {
 const logger = require("./utils/logger");
 
 dotenv.config();
-
 const app = express();
 
 // Security middleware
@@ -35,7 +33,7 @@ app.use("/health", require("./routes/health"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error(
+  logger.error(err.message ?? "Internal Server Error",
     {
       requestId: req.requestId,
       error: err.message,
@@ -44,7 +42,7 @@ app.use((err, req, res, next) => {
       url: req.originalUrl,
       ip: req.ip,
     },
-    err.message ?? "Internal Server Error"
+
   );
 
   res.status(err.status || 500).json({
@@ -52,13 +50,41 @@ app.use((err, req, res, next) => {
     message: err.message || "Internal Server Error",
   });
 });
-const PORT = process.env.PORT || 3000;
-const db = require("./utils/mongo");
-db.connect();
-app.listen(PORT, () => {
-  logger.info(
-    `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
-  );
-  logger.info("Loaded environment variables from .env file:");
-  logger.info(dotenv.config().parsed);
-});
+const PORT = process.env.PORT || 8000;
+
+async function initializeApp() {
+  try {
+    const db = require("./providers/mongo");
+    await db.connect();
+
+    require('./providers/queue.worker'); // Initialize queue worker
+
+    return true;
+  } catch (error) {
+    logger.error(`Failed to initialize application: ${error.message}`);
+    return false;
+  }
+}
+
+(async () => {
+  const server = app.listen(PORT, async () => {
+    const initialized = await initializeApp();
+    if (!initialized) {
+      logger.error("Application initialization failed. Shutting down server.");
+      server.close(() => {
+        process.exit(1);
+      });
+    } else {
+      logger.info(
+        `Server running on port ${PORT}, Environment: ${process.env.NODE_ENV}`
+      );
+      const config = require(`./config/${process.env.NODE_ENV}.js`);
+
+      logger.info("Loaded application configuration", config);
+      const socketEmitter = require("./providers/socket");
+      socketEmitter.initialize(server);
+    }
+  });
+})();
+
+

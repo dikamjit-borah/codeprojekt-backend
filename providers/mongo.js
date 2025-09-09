@@ -2,15 +2,12 @@ const config = require("config");
 const mongoConfig = config.get("mongo");
 const connectionString = `${mongoConfig.uri}/${mongoConfig.dbName}?${mongoConfig.options}`;
 const { MongoClient } = require("mongodb");
-const logger = require("./logger");
+const logger = require("../utils/logger");
 
 class MongoDB {
   constructor() {
     this.connectionString = connectionString;
-    this.client = new MongoClient(this.connectionString, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    this.client = new MongoClient(this.connectionString);
     this.db = null;
   }
 
@@ -22,8 +19,8 @@ class MongoDB {
         logger.info("MongoDB connected");
       } catch (error) {
         logger.error(
+          "Failed to connect to MongoDB",
           { error: error.message, stack: error.stack },
-          "Failed to connect to MongoDB"
         );
       }
     }

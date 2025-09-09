@@ -106,15 +106,15 @@ class SmileOneAdapter {
       zoneid,
     };
     //Uncomment the following lines to enable actual order placement
-    //const response = await this.call(CREATE_ORDER, payload);
-    //return response;
-    return {
+    const response = await this.call(CREATE_ORDER, payload);
+    return response;
+    /* return {
       status: 200,
       message: "success",
       order_id: "S250528064515377SAQO",
       price: "76.0",
       info: null,
-    };
+    }; */
   }
 }
 

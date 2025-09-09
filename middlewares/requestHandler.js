@@ -47,13 +47,13 @@ const responseFormatter = (req, res, next) => {
       data,
     };
 
-   /*  logger.info(
-      {
-        requestId: req.requestId,
-        responseTime: Date.now() - req._startTime + "ms",
-      },
-      "Response sent"
-    ); */
+    /*  logger.info(
+       {
+         requestId: req.requestId,
+         responseTime: Date.now() - req._startTime + "ms",
+       },
+       "Response sent"
+     ); */
 
     return res.status(status).json(response);
   };
@@ -90,7 +90,34 @@ const responseFormatter = (req, res, next) => {
   next();
 };
 
+const validateRequest = (schema) => {
+  if (!schema || Object.keys(schema).length === 0) {
+    throw new Error("Validation schema is required");
+  }
+
+  return (req, res, next) => {
+    // Combine request data, safely handling null/undefined values
+    const requestData = {
+      ...(req.body || {}),
+      ...(req.query || {}),
+      ...(req.params || {})
+    };
+
+    // Validate the combined request data against the schema
+    const { error } = schema.validate(requestData, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({
+        status: 400,
+        message: `Validation error: ${error.details.map(detail => detail.message).join(', ')}`,
+      });
+    }
+
+    next();
+  };
+};
+
 module.exports = {
   requestIdMiddleware,
   responseFormatter,
+  validateRequest,
 };
