@@ -5,7 +5,8 @@ const smileOneAdapter = require("../vendors/smileOne.adapter");
 const createHttpError = require("http-errors");
 const db = require("../providers/mongo");
 const { generateHash } = require("../utils/helpers");
-const { groupBy } = require("lodash");
+const { groupBy, get } = require("lodash");
+const cache = require("../utils/internalCache");
 
 const getSPUsForProduct = async (product) => {
   const [productSPUs, existingSpusDoc] = await Promise.all([
@@ -65,6 +66,10 @@ async function categorizeProducts(products, rulesConfig) {
     rulesConfig,
     extractFacts
   );
+  const brazilianRealToINR = get(
+    cache.getKey("configs:app"),
+    "[0].brazilianRealToINR"
+  );
 
   const categorizedSPUs = evaluationResults.map(
     ({ originalItem, matchedEvents }) => {
@@ -74,9 +79,7 @@ async function categorizeProducts(products, rulesConfig) {
       return {
         ...originalItem,
         price_inr: parseFloat(
-          (
-            parseFloat(originalItem.price) * config.get("brazilianRealToINR")
-          ).toFixed(2)
+          (parseFloat(originalItem.price) * parseFloat(brazilianRealToINR)).toFixed(2)
         ),
         category: categoryEvent
           ? categoryEvent.params.category
