@@ -8,6 +8,7 @@ const {
   responseFormatter,
 } = require("./middlewares/requestHandler");
 const logger = require("./utils/logger");
+const { fetchAppConfigs } = require("./utils/helpers");
 
 dotenv.config();
 const app = express();
@@ -24,12 +25,13 @@ app.use(responseFormatter);
 // Routes
 const v1Router = express.Router();
 
+app.use("/health", require("./routes/health"));
+
+// Apply auth to all versioned APIs by default (whitelist handled inside middleware)
 app.use("/v1", v1Router); //router for versioning
 v1Router.use("/product", require("./routes/product"));
 v1Router.use("/payment", require("./routes/payment"));
 v1Router.use("/user", require("./routes/user"));
-
-app.use("/health", require("./routes/health"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -58,7 +60,7 @@ async function initializeApp() {
     await db.connect();
 
     require('./providers/queue.worker'); // Initialize queue worker
-
+    await fetchAppConfigs();
     return true;
   } catch (error) {
     logger.error(`Failed to initialize application: ${error.message}`);

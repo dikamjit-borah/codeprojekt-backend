@@ -2,7 +2,6 @@ const config = require("config");
 const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
-const brazilianRealToSmileCoin = config.get("brazilianRealToSmilecoin");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
 const {
@@ -99,6 +98,11 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
 async function hasSufficientSmileCoin(spuDetails) {
   try {
     const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
+    const brazilianRealToSmileCoin = get(
+      cache.getKey("configs:app"),
+      "[0].brazilianRealToSmileCoin"
+    );
+
     const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
     logger.info(
       `Smile Coin balance: ${smileOneBalance}, Price in Smile Coin: ${priceInSmileCoin}`
