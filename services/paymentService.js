@@ -1,4 +1,3 @@
-const config = require("config");
 const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
@@ -14,6 +13,7 @@ const logger = require("../utils/logger");
 const queueManager = require("../providers/queue.manager");
 const socket = require("../providers/socket");
 const { get } = require("lodash");
+const cache = require("../utils/internalCache");
 
 const purchaseSPU = async (
   spuId,
