@@ -45,22 +45,70 @@ class MongoDB {
 
   async insertOne(collection, data) {
     const col = await this.getCollection(collection);
-    return col.insertOne(data);
+    const now = new Date();
+    const docWithTimestamps = {
+      createdAt: data.createdAt || now,
+      updatedAt: data.updatedAt || now,
+      ...data,
+    };
+    return col.insertOne(docWithTimestamps);
   }
 
   async insertMany(collection, dataArray) {
     const col = await this.getCollection(collection);
-    return col.insertMany(dataArray);
+    const now = new Date();
+    const docsWithTimestamps = dataArray.map((doc) => ({
+      createdAt: doc.createdAt || now,
+      updatedAt: doc.updatedAt || now,
+      ...doc,
+    }));
+    return col.insertMany(docsWithTimestamps);
   }
 
   async updateOne(collection, filter, update, options = {}) {
     const col = await this.getCollection(collection);
-    return col.updateOne(filter, update, { ...options, upsert: true });
+    const now = new Date();
+    const isOperatorUpdate = update && Object.keys(update).some((k) => k.startsWith("$"));
+
+    if (isOperatorUpdate) {
+      const withUpdatedAt = {
+        ...update,
+        $set: { ...(update.$set || {}), updatedAt: now },
+        $setOnInsert: { ...(update.$setOnInsert || {}), createdAt: now },
+      };
+      return col.updateOne(filter, withUpdatedAt, { ...options, upsert: true });
+    }
+
+    // Replacement document style update
+    const replacement = {
+      createdAt: update.createdAt || now,
+      ...update,
+      updatedAt: now,
+    };
+    return col.updateOne(filter, replacement, { ...options, upsert: true });
   }
 
   async updateMany(collection, filter, update, options = {}) {
     const col = await this.getCollection(collection);
-    return col.updateMany(filter, update, options);
+    const now = new Date();
+    const isOperatorUpdate = update && Object.keys(update).some((k) => k.startsWith("$"));
+
+    if (isOperatorUpdate) {
+      const withUpdatedAt = {
+        ...update,
+        $set: { ...(update.$set || {}), updatedAt: now },
+        $setOnInsert: { ...(update.$setOnInsert || {}), createdAt: now },
+      };
+      return col.updateMany(filter, withUpdatedAt, options);
+    }
+
+    // Replacement document style update
+    const replacement = {
+      createdAt: update.createdAt || now,
+      ...update,
+      updatedAt: now,
+    };
+    return col.updateMany(filter, replacement, options);
   }
 
   async deleteOne(collection, filter) {
