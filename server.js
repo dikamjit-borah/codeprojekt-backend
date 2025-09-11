@@ -24,11 +24,11 @@ app.use(responseFormatter);
 
 // Routes
 const v1Router = express.Router();
+const applyAuth = require("./middlewares/auth");
 
 app.use("/health", require("./routes/health"));
 
-// Apply auth to all versioned APIs by default (whitelist handled inside middleware)
-app.use("/v1", v1Router); //router for versioning
+app.use("/v1", applyAuth, v1Router);
 v1Router.use("/product", require("./routes/product"));
 v1Router.use("/payment", require("./routes/payment"));
 v1Router.use("/user", require("./routes/user"));
