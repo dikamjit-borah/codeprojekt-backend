@@ -49,5 +49,6 @@ module.exports = {
     "/health",
     "/v1/user/login/google",
     "/v1/payment/phonePe/webhook",
+    "/v1/product/:product/spus"
   ],
 };
