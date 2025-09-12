@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
 const logger = require("../utils/logger");
 const { WHITELISTED_PATHS } = require("../utils/constants");
+const { match } = require("path-to-regexp");
 
 let isFirebaseInitialized = false;
 
@@ -35,7 +36,11 @@ function initializeFirebaseOnce() {
 
 function isWhitelistedPath(originalUrl) {
   if (!originalUrl) return false;
-  return WHITELISTED_PATHS.some((prefix) => originalUrl.startsWith(prefix));
+
+  return WHITELISTED_PATHS.some((pathPattern) => {
+    const matcher = match(pathPattern, { decode: decodeURIComponent });
+    return matcher(originalUrl) !== false;
+  });
 }
 
 async function applyAuth(req, res, next) {
