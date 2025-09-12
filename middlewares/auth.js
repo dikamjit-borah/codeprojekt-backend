@@ -34,18 +34,21 @@ function initializeFirebaseOnce() {
   }
 }
 
-function isWhitelistedPath(originalUrl) {
-  if (!originalUrl) return false;
+function isWhitelistedPath(pathname) {
+  if (!pathname) return false;
 
   return WHITELISTED_PATHS.some((pathPattern) => {
-    const matcher = match(pathPattern, { decode: decodeURIComponent });
-    return matcher(originalUrl) !== false;
+    const matcher = match(pathPattern, { decode: decodeURIComponent, end: true });
+    return matcher(pathname) !== false;
   });
 }
 
 async function applyAuth(req, res, next) {
   try {
-    if (isWhitelistedPath(req.originalUrl)) {
+    const pathOnly = req.path;
+    const fullMountedPath = req.baseUrl ? `${req.baseUrl}${req.path}` : req.path;
+
+    if (isWhitelistedPath(pathOnly) || isWhitelistedPath(fullMountedPath)) {
       return next();
     }
 
