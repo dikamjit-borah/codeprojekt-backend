@@ -44,9 +44,19 @@ async function fetchUserData(uid) {
       $lookup: {
         from: "transactions", // join with transactions
         localField: "uid", // field from 'users' collection
-        foreignField: "uid", // field from 'transactions' collection
+        foreignField: "userDetails.uid", // field from 'transactions' collection
         as: "transactions",
       },
+    },
+    {
+      $addFields: {
+        transactions: {
+          $sortArray: {
+            input: "$transactions",
+            sortBy: { createdAt: -1 } // Sort by createdAt descending (latest first)
+          }
+        }
+      }
     },
     // No $unwind — keep all transactions in an array
     // No $project — include all fields
