@@ -44,5 +44,12 @@ module.exports = {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
   SPU_TYPES,
-  PHONE_PE_WEBHOOK_TYPES
+  PHONE_PE_WEBHOOK_TYPES,
+  WHITELISTED_PATHS: [
+    "/health",
+    "/v1/user/login/google",
+    "/v1/payment/phonePe/webhook",
+    "/v1/product/:product/spus",
+    "/v1/user/playerIGN"
+  ],
 };

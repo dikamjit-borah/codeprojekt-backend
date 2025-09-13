@@ -235,9 +235,8 @@ const processPhonePeWebhook = async (headers, body) => {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
-      return;
     }
-    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
     // process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);
   } catch (error) {
@@ -307,7 +306,7 @@ async function processMerchPurchase(transactionId) {
     PURCHASE_SUBSTATUS.ORDER_PLACED
   );
   socket.emit('transaction-update', {
-    transactionId, status: PURCHASE_STATUS.SUCCESS, subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED
+    transactionId, status: PURCHASE_STATUS.SUCCESS, subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED, stage: 4
   }, `transaction:${transactionId}`);
 }
 
@@ -371,7 +370,7 @@ async function processGameItemPurchase(transaction) {
       subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
     }
     await updateTransactionStatus(transactionId, status, subStatus, { vendorResponse });
-    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 4 }, `transaction:${transactionId}`);
 
 
     return {
