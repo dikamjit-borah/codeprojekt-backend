@@ -235,9 +235,8 @@ const processPhonePeWebhook = async (headers, body) => {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
-      return;
     }
-    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
     // process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);
   } catch (error) {
@@ -307,7 +306,7 @@ async function processMerchPurchase(transactionId) {
     PURCHASE_SUBSTATUS.ORDER_PLACED
   );
   socket.emit('transaction-update', {
-    transactionId, status: PURCHASE_STATUS.SUCCESS, subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED
+    transactionId, status: PURCHASE_STATUS.SUCCESS, subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED, stage: 4
   }, `transaction:${transactionId}`);
 }
 
@@ -371,7 +370,7 @@ async function processGameItemPurchase(transaction) {
       subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
     }
     await updateTransactionStatus(transactionId, status, subStatus, { vendorResponse });
-    socket.emit('transaction-update', { transactionId, status, subStatus }, `transaction:${transactionId}`);
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 4 }, `transaction:${transactionId}`);
 
 
     return {
@@ -409,13 +408,15 @@ async function getTransactionStatus(transactionId) {
 
     // Calculate stage based on status and substatus
     let stage = 1;
-    if ([PURCHASE_STATUS.PENDING].includes(transaction.status)) {
+    if ([PURCHASE_STATUS.PENDING, PURCHASE_STATUS.FAILED].includes(transaction.status)) {
       switch (transaction.subStatus) {
         case PURCHASE_SUBSTATUS.ORDER_INITIATED:
           stage = 1;
           break;
         case PURCHASE_SUBSTATUS.GATEWAY_INITIATED:
         case PURCHASE_SUBSTATUS.PAYMENT_INITIATED:
+        case PURCHASE_SUBSTATUS.GATEWAY_FAILED:
+        case PURCHASE_SUBSTATUS.PAYMENT_FAILED:
           stage = 2;
           break;
         case PURCHASE_SUBSTATUS.PAYMENT_SUCCESS:
@@ -427,11 +428,10 @@ async function getTransactionStatus(transactionId) {
       }
     } else if (transaction.status === PURCHASE_STATUS.SUCCESS) {
       stage = 4;
-    } else if (transaction.status === PURCHASE_STATUS.FAILED) {
-      stage = transaction.stage || 1; // Maintain the stage where it failed
     }
 
     return {
+      isFailed: transaction.status === PURCHASE_STATUS.FAILED,
       transactionId,
       status: transaction.status,
       subStatus: transaction.subStatus,
