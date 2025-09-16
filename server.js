@@ -28,7 +28,7 @@ const applyAuth = require("./middlewares/auth");
 
 app.use("/health", require("./routes/health"));
 
-app.use("/v1", v1Router);
+app.use("/v1", applyAuth, v1Router);
 v1Router.use("/product", require("./routes/product"));
 v1Router.use("/payment", require("./routes/payment"));
 v1Router.use("/user", require("./routes/user"));
