@@ -86,7 +86,7 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
 
     case SPU_TYPES.GAME_ITEM: {
       if (!(await hasSufficientSmileCoin(spuDetails)))
-        throw createHttpError(402, "Insufficient Smile Coin balance");
+        throw createHttpError(402, "Insufficient balance. Sorry for the inconvenience");
 
       return { playerDetails };
     }
