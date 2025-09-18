@@ -18,6 +18,23 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+const { client, httpRequestsTotal, httpRequestDuration } = require('./middlewares/metrics');
+
+app.use((req, res, next) => {
+  // Start timer
+  const end = httpRequestDuration.startTimer();
+
+  // When response finishes, record metrics
+  res.on('finish', () => {
+    // route: try to get route pattern if available, fallback to req.path
+    const route = req.route && req.route.path ? req.baseUrl + req.route.path : req.path;
+
+    httpRequestsTotal.inc({ method: req.method, route: route, status: res.statusCode });
+    end({ method: req.method, route: route, status: res.statusCode }); // records to histogram
+  });
+
+  next();
+});
 // Request tracking and response formatting middleware
 app.use(requestIdMiddleware);
 app.use(responseFormatter);
@@ -51,6 +68,11 @@ app.use((err, req, res, next) => {
     status: err.status || 500,
     message: err.message || "Internal Server Error",
   });
+});
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
 });
 const PORT = process.env.PORT || 8000;
 
