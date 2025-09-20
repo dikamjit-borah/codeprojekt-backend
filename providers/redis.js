@@ -27,9 +27,7 @@ async function isRedisAvailable() {
       database: redisConfig.db || 0,
     });
     logger.info(`Checking Redis at ${redisConfig.host}:${redisConfig.port}`);
-
-    // Create Redis client with modern configuration
-    client = redis.createClient(redisConfig);
+    
     // Connect to Redis
     await client.connect();
     logger.info("Redis connected successfully");
