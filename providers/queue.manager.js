@@ -17,7 +17,7 @@ const queue = new Queue("vendor-api-calls", {
     port: config.redis.port,
     host: config.redis.host,
     username: config.redis.username,
-    password: config.redis?.password,
+    password: config.redis.password || undefined,
     tls: config.redis.tls,
     db: config.redis.database || 0,
     connectTimeout: 10000,
