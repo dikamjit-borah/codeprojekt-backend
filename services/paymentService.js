@@ -230,13 +230,14 @@ const processPhonePeWebhook = async (headers, body) => {
       paymentResponse: body,
     });
 
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
     // If payment failed, return early
     if (paymentStatus !== PHONE_PE_WEBHOOK_TYPES.ORDER_COMPLETED) {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
+      return 
     }
-    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
     // process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);
   } catch (error) {
