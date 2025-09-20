@@ -3,14 +3,6 @@ const config = require("config");
 const logger = require("../utils/logger");
 const redis = require("redis");
 
-// Debug Redis configuration that Bull will use
-logger.info('Bull Redis Configuration:', {
-  host: config.redis.host,
-  port: config.redis.port,
-  tls: config.redis.tls,
-  database: config.redis.database || 0
-});
-
 const options = {
   redis: {
     port: config.redis.port,
@@ -29,7 +21,6 @@ const options = {
     removeOnFail: 50,
   },
 }
-logger.info("Redis options: ", options);
 // Initialize vendor queue with Redis backend
 const queue = new Queue("vendor-api-calls", options);
 

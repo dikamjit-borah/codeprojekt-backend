@@ -403,10 +403,6 @@ async function getTransactionStatus(transactionId) {
       throw createHttpError(404, "Transaction not found");
     }
 
-    logger.info(
-      `Fetched status for transaction ${transactionId}: ${transaction.status}, subStatus: ${transaction.subStatus}`
-    );
-
     // Calculate stage based on status and substatus
     let stage = 1;
     if ([PURCHASE_STATUS.PENDING, PURCHASE_STATUS.FAILED].includes(transaction.status)) {
