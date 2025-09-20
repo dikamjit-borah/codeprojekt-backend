@@ -76,5 +76,5 @@ queue.on("error", (error) => {
       stack: error.stack
     } : 'Unknown error'
   };
-  logger.error('Queue error occurred', logData);
+  logger.error('Queue worker error', logData);
 });

@@ -11,8 +11,7 @@ logger.info('Bull Redis Configuration:', {
   database: config.redis.database || 0
 });
 
-// Initialize vendor queue with Redis backend
-const queue = new Queue("vendor-api-calls", {
+const options = {
   redis: {
     port: config.redis.port,
     host: config.redis.host,
@@ -29,11 +28,14 @@ const queue = new Queue("vendor-api-calls", {
     removeOnComplete: 100,
     removeOnFail: 50,
   },
-});
+}
+logger.log("Redis options: "options);
+// Initialize vendor queue with Redis backend
+const queue = new Queue("vendor-api-calls", options);
 
 // Queue health monitoring
 queue
-  .on("error", (error) => logger.error("Queue error:", error))
+  .on("error", (error) => logger.error("Queue manager error:", error))
   .on("waiting", (jobId) => logger.info(`Job ${jobId} is waiting`))
   .on("completed", (job, result) =>
     logger.info(`Job ${job.id} completed`, result)
