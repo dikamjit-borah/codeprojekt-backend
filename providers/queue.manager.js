@@ -29,7 +29,7 @@ const options = {
     removeOnFail: 50,
   },
 }
-logger.log("Redis options: "options);
+logger.log("Redis options: ", options);
 // Initialize vendor queue with Redis backend
 const queue = new Queue("vendor-api-calls", options);
 
