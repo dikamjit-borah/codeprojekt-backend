@@ -12,8 +12,7 @@ const {
 const logger = require("../utils/logger");
 const queueManager = require("../providers/queue.manager");
 const socket = require("../providers/socket");
-const { get } = require("lodash");
-const cache = require("../utils/internalCache");
+const { fetchAppConfigs } = require("../utils/helpers");
 
 const purchaseSPU = async (
   spuId,
@@ -54,7 +53,8 @@ const purchaseSPU = async (
     });
 
     let gatewayResponse = await initiateGatewayPayment(
-      `${spuId}-${transactionId}`,
+      spuId,
+      transactionId,
       spuDetails.price_inr,
       redirectUrlWithTransactionId
     );
@@ -99,10 +99,7 @@ async function validateSPUType(spuType, spuDetails, playerDetails) {
 async function hasSufficientSmileCoin(spuDetails) {
   try {
     const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
-    const brazilianRealToSmileCoin = get(
-      cache.getKey("configs:app"),
-      "[0].brazilianRealToSmileCoin"
-    );
+    const brazilianRealToSmileCoin = (await fetchAppConfigs())[0].brazilianRealToSmileCoin;
 
     const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
     logger.info(
@@ -120,11 +117,13 @@ async function hasSufficientSmileCoin(spuDetails) {
 }
 
 async function initiateGatewayPayment(
-  merchantOrderId,
+  spuId,
+  transactionId,
   priceInInr,
   redirectUrl
 ) {
   try {
+    const merchantOrderId = `${spuId}-${transactionId}`
     const priceInPaisa = Math.round(priceInInr * 100); // Convert INR to paise
     const response = await phonePeAdapter.pay({
       merchantOrderId,
@@ -236,7 +235,7 @@ const processPhonePeWebhook = async (headers, body) => {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
-      return 
+      return
     }
     // process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);

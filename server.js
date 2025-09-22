@@ -82,7 +82,6 @@ async function initializeApp() {
     await db.connect();
 
     require('./providers/queue.worker'); // Initialize queue worker
-    await fetchAppConfigs();
     return true;
   } catch (error) {
     logger.error(`Failed to initialize application: ${error.message}`);
