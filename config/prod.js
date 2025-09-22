@@ -6,8 +6,6 @@ module.exports = {
     email: process.env.SMILEONE_EMAIL,
     secretKey: process.env.SMILEONE_SECRET_KEY,
   },
-  brazilianRealToINR: parseFloat(process.env.BRAZILIAN_REAL_TO_INR),
-  brazilianRealToSmilecoin: parseFloat(process.env.BRAZILIAN_REAL_TO_SMILECOIN),
   mongo: {
     uri: process.env.MONGO_URI,
     dbName: process.env.MONGO_DB_NAME,
