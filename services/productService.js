@@ -66,11 +66,8 @@ async function categorizeProducts(products, rulesConfig) {
     rulesConfig,
     extractFacts
   );
-  const brazilianRealToINR = get(
-    cache.getKey("configs:app"),
-    "[0].brazilianRealToINR"
-  );
 
+  const brazilianRealToINR = (await fetchAppConfigs())[0].brazilianRealToINR;
   const categorizedSPUs = evaluationResults.map(
     ({ originalItem, matchedEvents }) => {
       const categoryEvent = matchedEvents.find(
