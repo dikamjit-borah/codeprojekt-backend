@@ -23,7 +23,7 @@ module.exports = {
     host: process.env.REDIS_HOST,
     port: 6379,
     connectTimeout: 3000,
-    tls: true,
+    tls: process.env.REDIS_TLS,
     username: process.env.REDIS_USERNAME,
     password: process.env.REDIS_PASSWORD,
     database: process.env.REDIS_DB || 0,
