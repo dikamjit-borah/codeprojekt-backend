@@ -1,5 +1,5 @@
 
-FROM node:18-alpine
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -19,4 +19,4 @@ EXPOSE 3000
 ENV NODE_ENV=prod
 
 # Start the application
-CMD ["node", "server.js"]
+CMD ["npm", "run", "prod"]

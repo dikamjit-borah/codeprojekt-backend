@@ -4,6 +4,7 @@ const {
   StandardCheckoutClient,
   StandardCheckoutPayRequest,
   Env,
+  RefundRequest,
 } = require("pg-sdk-node");
 const env = config.get("env");
 const phonePeConfig = config.get("phonePe");
@@ -43,6 +44,23 @@ class PhonePeAdapter {
       phonepeS2SCallbackResponseBodyString
     );
     return callbackResponse;
+  }
+
+  async getOrderStatus(merchantOrderId) {
+    return this.client.getOrderStatus(merchantOrderId)
+  }
+
+  async refund({
+    amount,
+    refundId,
+    originalMerchantOrderId,
+  }) {
+    const refundRequest = RefundRequest.builder()
+      .amount(amount)
+      .merchantRefundId(refundId)
+      .originalMerchantOrderId(originalMerchantOrderId)
+      .build();
+    return await this.client.refund(refundRequest);
   }
 }
 
