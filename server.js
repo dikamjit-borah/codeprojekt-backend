@@ -61,13 +61,9 @@ app.use((err, req, res, next) => {
       url: req.originalUrl,
       ip: req.ip,
     },
-
   );
 
-  res.status(err.status || 500).json({
-    status: err.status || 500,
-    message: err.message || "Internal Server Error",
-  });
+  res.error(err.status || 500, err.message || "Internal Server Error")
 });
 
 app.get('/metrics', async (req, res) => {
