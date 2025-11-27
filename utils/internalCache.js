@@ -1,7 +1,7 @@
 const logger = require("./logger");
 
 class InternalCache {
-  constructor(cleanIntervalMs = 2700000) { //45 minutes
+  constructor(cleanIntervalMs = 10800000) { // 3 hours
     this.cache = new Map();
 
     // Start background cleaner

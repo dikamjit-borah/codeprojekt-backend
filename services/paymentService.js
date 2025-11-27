@@ -3,6 +3,7 @@ const createHttpError = require("http-errors");
 const UUID = require("uuid");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
+const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
 const {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
@@ -23,7 +24,8 @@ const purchaseSPU = async (
   redirectUrl
 ) => {
   const transactionId = UUID.v4();
-  const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
+  // const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
+  const redirectUrlWithTransactionId = `${'https://codeprojekt.shop'}`
 
   try {
     logger.info("Initiating purchase", {
@@ -64,7 +66,7 @@ const purchaseSPU = async (
       transactionId,
       PURCHASE_STATUS.PENDING,
       PURCHASE_SUBSTATUS.GATEWAY_INITIATED,
-      { gatewayResponse }
+      { gatewayResponse, orderId: gatewayResponse.orderId, }
     );
 
     return {
@@ -123,15 +125,27 @@ async function initiateGatewayPayment(
   redirectUrl
 ) {
   try {
+    /*  
     const merchantOrderId = `${spuId}-${transactionId}`
     const priceInPaisa = Math.round(priceInInr * 100); // Convert INR to paise
     const response = await phonePeAdapter.pay({
       merchantOrderId,
       amount: priceInPaisa,
       redirectUrl,
+    }); 
+    */
+
+
+    // Matrix Sols adapter implementation
+    const response = await matrixSolsAdapter.pay({
+      amount: priceInInr,
+      redirectUrl,
     });
 
-    return response;
+    return {
+      orderId: response.order_id,
+      redirectUrl: response.payment_url,
+    };
   } catch (error) {
     logger.error(`Failed to initiate gateway payment: ${error.message}`);
     await updateTransactionStatus(
@@ -232,6 +246,89 @@ const processPhonePeWebhook = async (headers, body) => {
     socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
     // If payment failed, return early
     if (paymentStatus !== PHONE_PE_WEBHOOK_TYPES.ORDER_COMPLETED) {
+      logger.info(
+        `Payment failed for transaction ${transactionId}: ${paymentStatus}`
+      );
+      return
+    }
+    // process for the respective SPU type
+    return await processTransaction(transaction, parsedWebhook);
+  } catch (error) {
+    logger.error(`Webhook processing error: ${error.message}`, error);
+    throw createHttpError(
+      error.statusCode || 500,
+      `Failed to process webhook: ${error.message}`
+    );
+  }
+};
+
+/**
+ * Process Matrix Sols webhook - main entry point for webhook processing
+ * @param {Object} headers Request headers containing authorization
+ * @param {Object} body Webhook payload
+ * @returns {Promise<Object>} Processing result
+ */
+const processMatrixSolsWebhook = async (headers, body) => {
+  try {
+    logger.info("Processing Matrix Sols webhook", { headers, body });
+
+    // Matrix Sols webhook validation
+    const signature = headers['x-signature'];
+    const isValidSignature = await matrixSolsAdapter.validateCallback(
+      body,
+      signature
+    );
+
+    const parsedWebhook = isValidSignature ? await matrixSolsAdapter.handleWebhookNotification(body) : null;
+
+    if (!parsedWebhook) {
+      logger.error("Invalid Matrix Sols webhook signature");
+      throw createHttpError(401, "Invalid webhook signature");
+    }
+
+    // Extract order ID and payment status from the payload
+    const orderId = parsedWebhook.orderId;
+    const paymentStatus = parsedWebhook.status; // "Success" or other status from Matrix Sols
+
+    logger.info(
+      `Received Matrix Sols webhook for order ${orderId} with status ${paymentStatus}`
+    );
+
+    if (!orderId) {
+      throw createHttpError(
+        400,
+        "Missing order ID in webhook payload"
+      );
+    }
+
+    // Fetch transaction from order ID
+    const transaction = await db.findOne("transactions", { orderId });
+    const transactionId = transaction ? transaction.transactionId : null;
+    if (!transaction) {
+      throw createHttpError(
+        404,
+        `Transaction not found for order ID: ${transactionId}`
+      );
+    }
+
+    // Matrix Sols webhook status mapping
+    const status =
+      paymentStatus === "Success"
+        ? PURCHASE_STATUS.PAYMENT_COMPLETED
+        : PURCHASE_STATUS.FAILED;
+
+    const subStatus =
+      paymentStatus === "Success"
+        ? PURCHASE_SUBSTATUS.PAYMENT_SUCCESS
+        : PURCHASE_SUBSTATUS.PAYMENT_FAILED;
+
+    await updateTransactionStatus(transactionId, status, subStatus, {
+      paymentResponse: body,
+    });
+
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
+    // If payment failed, return early
+    if (paymentStatus !== "Success") {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
@@ -494,7 +591,9 @@ async function updateTransactionWithStage(
 
 module.exports = {
   purchaseSPU,
+  // Deprecated: Use processMatrixSolsWebhook instead
   processPhonePeWebhook,
+  processMatrixSolsWebhook,
   processGameItemPurchase,
   getTransactionStatus,
   updateTransactionWithStage,
