@@ -19,6 +19,11 @@ module.exports = {
     merchantUsername: process.env.PHONEPE_MERCHANT_USERNAME,
     merchantPassword: process.env.PHONEPE_MERCHANT_PASSWORD,
   },
+  matrixSols: {
+    baseURL: process.env.MATRIXSOLS_BASE_URL,
+    apiKey: process.env.MATRIXSOLS_API_KEY,
+    clientId: process.env.MATRIXSOLS_CLIENT_ID,
+  },
   redis: {
     host: process.env.REDIS_HOST,
     port: 6379,
