@@ -25,7 +25,7 @@ const purchaseSPU = async (
 ) => {
   const transactionId = UUID.v4();
   // const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
-  const redirectUrlWithTransactionId = `${'https://stage.codeprojekt.shop/transaction-status'}`
+  const redirectUrlWithTransactionId = `${'https://codeprojekt.shop/transaction-status'}`
 
   try {
     logger.info("Initiating purchase", {
