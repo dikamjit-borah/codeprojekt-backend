@@ -29,6 +29,15 @@ const processPhonePeWebhook = async (req, res, next) => {
   }
 };
 
+const processMatrixSolsWebhook = async (req, res, next) => {
+  try {
+    await paymentService.processMatrixSolsWebhook(req.headers, req.body);
+    res.success(200, "Webhook processed successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getTransactionStatus = async (req, res, next) => {
   try {
     const { transactionId } = req.params;
@@ -50,5 +59,6 @@ const getTransactionStatus = async (req, res, next) => {
 module.exports = {
   purchaseSPU,
   processPhonePeWebhook,
+  processMatrixSolsWebhook,
   getTransactionStatus,
 };
