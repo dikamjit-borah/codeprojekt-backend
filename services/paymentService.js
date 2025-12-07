@@ -1,7 +1,7 @@
 const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
-const { map, filter } = require("lodash");
+const { map, filter, sum } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
 const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
@@ -26,7 +26,7 @@ const purchaseSPU = async (
 ) => {
   const transactionId = UUID.v4();
   // const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
-  const redirectUrlWithTransactionId = `${'https://codeprojekt.shop/transaction-status'}`
+  const redirectUrlWithTransactionId = `${'https://stage.codeprojekt.shop/transaction-status'}`
 
   try {
     logger.info("Initiating purchase", {
@@ -58,7 +58,7 @@ const purchaseSPU = async (
     let gatewayResponse = await initiateGatewayPayment(
       spuId,
       transactionId,
-      spuDetails.price_inr,
+      sum(map(spuDetails, "price_inr")),
       redirectUrlWithTransactionId
     );
 
