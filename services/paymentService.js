@@ -1,7 +1,7 @@
 const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
-const { map, filter } = require("lodash");
+const { map, filter, sum } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
 const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
@@ -58,7 +58,7 @@ const purchaseSPU = async (
     let gatewayResponse = await initiateGatewayPayment(
       spuId,
       transactionId,
-      spuDetails.price_inr,
+      sum(map(spuDetails, "price_inr")),
       redirectUrlWithTransactionId
     );
 
