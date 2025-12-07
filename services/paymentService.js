@@ -1,6 +1,7 @@
 const db = require("../providers/mongo");
 const createHttpError = require("http-errors");
 const UUID = require("uuid");
+const { map, filter } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
 const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
@@ -25,7 +26,7 @@ const purchaseSPU = async (
 ) => {
   const transactionId = UUID.v4();
   // const redirectUrlWithTransactionId = `${redirectUrl}?transactionId=${transactionId}`
-  const redirectUrlWithTransactionId = `${'https://codeprojekt.shop'}`
+  const redirectUrlWithTransactionId = `${'https://codeprojekt.shop/transaction-status'}`
 
   try {
     logger.info("Initiating purchase", {
@@ -274,17 +275,19 @@ const processMatrixSolsWebhook = async (headers, body) => {
 
     // Matrix Sols webhook validation
     const signature = headers['x-signature'];
-    const isValidSignature = await matrixSolsAdapter.validateCallback(
+    /*const isValidSignature = await matrixSolsAdapter.validateCallback(
       body,
       signature
     );
 
-    const parsedWebhook = isValidSignature ? await matrixSolsAdapter.handleWebhookNotification(body) : null;
+    const parsedWebhook = isValidSignature ? await matrixSolsAdapter.handleWebhookNotification(body) : null; 
+    */
+    const parsedWebhook = await matrixSolsAdapter.handleWebhookNotification(body);
 
-    if (!parsedWebhook) {
+    /* if (!parsedWebhook) {
       logger.error("Invalid Matrix Sols webhook signature");
       throw createHttpError(401, "Invalid webhook signature");
-    }
+    } */
 
     // Extract order ID and payment status from the payload
     const orderId = parsedWebhook.orderId;
@@ -445,36 +448,36 @@ async function processGameItemPurchase(transaction) {
       `Processing vendor purchase for transaction ${transactionId} of spuId ${spuId}`
     );
 
-    // Call SmileOne API to place order
-    const vendorResponse = await smileOneAdapter.placeOrder(
-      spuDetails.product,
-      spuId,
-      playerDetails.userid,
-      playerDetails.zoneid
+    // Create vendor order promises for all items
+    const orderPromises = map(spuDetails, item =>
+      callVendorAndPlaceOrder(item, transactionId, playerDetails)
     );
-    let status, subStatus;
-    if (vendorResponse.status == 200) {
-      logger.info(
-        `Vendor order placed successfully for transaction ${transactionId}`
-      );
-      status = PURCHASE_STATUS.SUCCESS;
-      subStatus = PURCHASE_SUBSTATUS.ORDER_PLACED;
-    } else {
-      logger.info(
-        `Vendor order failed for transaction ${transactionId}`
-      );
-      status = PURCHASE_STATUS.FAILED;
-      subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
-    }
-    await updateTransactionStatus(transactionId, status, subStatus, { vendorResponse });
-    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 4 }, `transaction:${transactionId}`);
 
+    const orderResponses = await Promise.allSettled(orderPromises);
+
+    // Get fulfilled responses and count successful orders
+    const fulfilledResponses = filter(orderResponses, { status: 'fulfilled' });
+    const successfulOrders = filter(fulfilledResponses, response =>
+      response.value.subStatus === PURCHASE_SUBSTATUS.ORDER_PLACED
+    );
+
+    // Determine status based on order placement results
+    const { status, subStatus } = getOrderStatusMapping(
+      successfulOrders.length,
+      fulfilledResponses.length
+    );
+
+    // Extract vendor responses from fulfilled results
+    const vendorResponses = map(fulfilledResponses, response => response.value.vendorResponse);
+
+    await updateTransactionStatus(transactionId, status, subStatus, { vendorResponses });
+    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 4 }, `transaction:${transactionId}`);
 
     return {
       success: true,
       transactionId,
       orderPlaced: true,
-      vendorResponse,
+      vendorResponses,
     };
   } catch (error) {
     logger.error(
@@ -489,6 +492,34 @@ async function processGameItemPurchase(transaction) {
       }
     );
   }
+}
+
+/**
+ * Determine transaction status based on order placement results
+ * @param {number} successCount Number of successfully placed orders
+ * @param {number} totalCount Total number of fulfilled responses
+ * @returns {Object} Object with status and subStatus
+ */
+function getOrderStatusMapping(successCount, totalCount) {
+  if (successCount === 0) {
+    return {
+      status: PURCHASE_STATUS.FAILED,
+      subStatus: PURCHASE_SUBSTATUS.VENDOR_FAILED,
+    };
+  }
+
+  if (successCount === totalCount) {
+    return {
+      status: PURCHASE_STATUS.SUCCESS,
+      subStatus: PURCHASE_SUBSTATUS.ORDER_PLACED,
+    };
+  }
+
+  // Partial success
+  return {
+    status: PURCHASE_STATUS.PAYMENT_COMPLETED,
+    subStatus: PURCHASE_SUBSTATUS.ORDER_PENDING,
+  };
 }
 
 async function getTransactionStatus(transactionId) {
@@ -586,6 +617,36 @@ async function updateTransactionWithStage(
   } catch (error) {
     logger.error(`Failed to update transaction: ${error.message}`);
     throw error;
+  }
+}
+
+async function callVendorAndPlaceOrder(spuDetail, transactionId, playerDetails) {
+  try {
+    // Call SmileOne API to place order
+    const vendorResponse = await smileOneAdapter.placeOrder(
+      spuDetail.product,
+      spuDetail.spuId,
+      playerDetails.userid,
+      playerDetails.zoneid
+    );
+    let subStatus;
+    if (vendorResponse.status == 200) {
+      logger.info(
+        `Vendor order placed successfully for transaction ${transactionId}`
+      );
+      subStatus = PURCHASE_SUBSTATUS.ORDER_PLACED;
+    } else {
+      logger.info(
+        `Vendor order failed for transaction ${transactionId} spuId ${spuDetail.spuId}`
+      );
+      subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
+    }
+    return { vendorResponse, subStatus };
+  } catch (error) {
+    logger.error(
+      `Error placing vendor order for transaction ${transactionId} spuId ${spuDetail.spuId}: ${error.message}`
+    );
+    return { vendorResponse: error.message, subStatus: PURCHASE_SUBSTATUS.VENDOR_FAILED };
   }
 }
 

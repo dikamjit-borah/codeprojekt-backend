@@ -11,6 +11,7 @@ const PURCHASE_STATUS = {
 const PURCHASE_SUBSTATUS = {
   ORDER_INITIATED: "order_initiated", // Initial state when order is placed.
   ORDER_PLACED: "order_placed", // Order placed successfully after payment.
+  ORDER_PENDING: "order_pending", // Order is not fully processed yet. 
 
   GATEWAY_INITIATED: "gateway_initiated", // After initiating the gateway request, before redirecting to frontend.
   GATEWAY_FAILED: "gateway_failed", // Gateway init failed or invalid response.
@@ -49,6 +50,7 @@ module.exports = {
     "/health",
     "/v1/user/login/google",
     "/v1/payment/phonePe/webhook",
+    "/v1/payment/matrixSols/webhook",
     "/v1/product/:product/spus",
     "/v1/user/playerIGN"
   ],

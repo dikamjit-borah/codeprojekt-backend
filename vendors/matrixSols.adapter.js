@@ -60,7 +60,7 @@ class MatrixSolsAdapter {
             "X-Signature": signature,
         };
 
-        const response = await fetch(`${matrixSolsConfig.baseUrl}/${CREATE_ORDER.url}`, {
+        const response = await fetch(`${matrixSolsConfig.baseURL}/${CREATE_ORDER.url}`, {
             method: "POST",
             headers: headers,
             body: JSON.stringify(payload),

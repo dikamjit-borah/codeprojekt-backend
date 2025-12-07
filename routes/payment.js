@@ -13,6 +13,8 @@ router.post(
 
 // Webhook endpoints
 router.post("/phonePe/webhook", paymentController.processPhonePeWebhook);
+router.post("/matrixSols/webhook", paymentController.processMatrixSolsWebhook);
+
 
 // Transaction status endpoints
 router.get("/transaction/:transactionId/status", paymentController.getTransactionStatus);
