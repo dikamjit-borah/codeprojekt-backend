@@ -29,5 +29,10 @@ module.exports = {
     username: process.env.REDIS_USERNAME,
     password: process.env.REDIS_PASSWORD,
     database: process.env.REDIS_DB || 0,
-  }
+  },
+  moogold: {
+    baseURL: process.env.MOOGOLD_BASE_URL,
+    partnerId: process.env.MOOGOLD_PARTNER_ID,
+    secretKey: process.env.MOOGOLD_SECRET_KEY,
+  },
 };
