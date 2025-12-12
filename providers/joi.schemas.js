@@ -4,7 +4,7 @@ const { SPU_TYPES } = require("../utils/constants");
 const schemas = {
   purchaseSPU: Joi.object({
     spuId: Joi.string().required(),
-    spuDetails: Joi.array().items(Joi.object()).required(),
+    spuDetails: Joi.object().required(),
     spuType: Joi.string()
       .valid(...Object.values(SPU_TYPES))
       .required(),
