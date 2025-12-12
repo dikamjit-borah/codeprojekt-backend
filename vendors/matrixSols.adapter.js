@@ -67,16 +67,16 @@ class MatrixSolsAdapter {
             body: JSON.stringify(payload),
         });
 
-        const data = await response.json();
-        db.insertOne("vendor-calls", { url, headers, body: payload, vendor: 'matrix_sols', type: 'api' }).catch((err) => {
+        const responseJson = await response.json();
+        db.insertOne("vendor-calls", { url, body: payload, vendor: 'matrix_sols', type: 'api', response: responseJson }).catch((err) => {
             logger.error("Failed to log Matrix Sols api call", { error: err.message });
         });
 
         if (!response.ok) {
-            throw new Error(data.message || `API Error: ${response.status}`);
+            throw new Error(responseJson.message || `API Error: ${response.status}`);
         }
 
-        return data.data
+        return responseJson.data
     }
 
     /**

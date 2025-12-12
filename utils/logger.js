@@ -2,10 +2,11 @@ const pino = require("pino");
 
 const baseLogger = pino({
   level: process.env.LOG_LEVEL || "debug",
+  // Disable colors so CloudWatch logs don't render escape codes as boxes
   transport: {
     target: "pino-pretty",
     options: {
-      colorize: true,
+      colorize: false,
       translateTime: "SYS:standard",
       ignore: "pid,hostname",
     },
