@@ -54,10 +54,10 @@ function createLogMethod(level) {
     const caller = getCaller();
     if (typeof msg === 'string') {
       // Combine the message and additional arguments into one object for pino
-      baseLogger[level]({ caller, ...args[0] }, msg);
+      baseLogger[level]({ ...args[0] }, msg);
     } else {
       // If the first argument is not a string, treat it as the main log message
-      baseLogger[level]({ caller }, msg, ...args);
+      baseLogger[level]({}, msg, ...args);
     }
   };
 }
