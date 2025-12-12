@@ -67,7 +67,7 @@ class MatrixSolsAdapter {
         });
 
         const data = await response.json();
-        db.insertOne("vendor-calls", { headers, body: payload, vendor: 'matrix_sols', type: 'api' }).catch((err) => {
+        db.insertOne("vendor-calls", { url, headers, body: payload, vendor: 'matrix_sols', type: 'api' }).catch((err) => {
             logger.error("Failed to log Matrix Sols api call", { error: err.message });
         });
 
