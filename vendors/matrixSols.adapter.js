@@ -2,6 +2,7 @@ const config = require("config");
 const crypto = require("crypto");
 const { CREATE_ORDER } = require("../config/matrixSols.config");
 const matrixSolsConfig = config.get("matrixSols");
+const db = require("../providers/mongo");
 
 class MatrixSolsAdapter {
     constructor() {
