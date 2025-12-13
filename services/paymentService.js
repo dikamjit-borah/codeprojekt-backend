@@ -315,7 +315,13 @@ const processMatrixSolsWebhook = async (headers, body) => {
         `Transaction not found for order ID: ${transactionId}`
       );
     }
-
+    // Check if transaction is already completed
+    if (transaction.status === PURCHASE_STATUS.SUCCESS) {
+      logger.info(
+        `Transaction ${transactionId} already completed, acknowledging webhook`
+      );
+      return;
+    }
     // Matrix Sols webhook status mapping
     const status =
       paymentStatus === "Success"
