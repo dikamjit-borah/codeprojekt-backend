@@ -48,9 +48,10 @@ module.exports = {
   WHITELISTED_PATHS: [
     "/health",
     "/v1/user/login/google",
+    "/v1/user/playerIGN",
     "/v1/payment/phonePe/webhook",
     "/v1/payment/matrixSols/webhook",
     "/v1/product/:product/spus",
-    "/v1/user/playerIGN"
+    "/v1/product/smileCoins",
   ],
 };
