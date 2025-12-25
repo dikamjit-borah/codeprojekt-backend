@@ -69,8 +69,54 @@ async function fetchUserData(uid) {
   return result[0];
 }
 
+const fetchAllUsers = async (page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+
+  const pipeline = [
+    {
+      $project: {
+        profile: 1,
+      },
+    },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ];
+
+  const result = await mongo.aggregate("users", pipeline);
+  if (!result || result.length === 0) {
+    return {
+      data: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        pages: 0,
+      },
+    };
+  }
+
+  const { metadata, data } = result[0];
+  const total = metadata.length > 0 ? metadata[0].total : 0;
+  const pages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages,
+    },
+  };
+};
+
 module.exports = {
   fetchPlayerIGN,
   googleSignInAndFetchProfile,
   fetchUserData,
+  fetchAllUsers,
 };

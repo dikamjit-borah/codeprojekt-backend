@@ -32,8 +32,20 @@ const fetchUserData = async (req, res, next) => {
   }
 };
 
+const fetchAllUsers = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const result = await userService.fetchAllUsers(page, limit);
+    res.success(200, "Users fetched", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   fetchPlayerIGN,
   googleSignInAndFetchProfile,
   fetchUserData,
+  fetchAllUsers,
 };
