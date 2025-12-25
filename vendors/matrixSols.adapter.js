@@ -2,6 +2,7 @@ const config = require("config");
 const crypto = require("crypto");
 const { CREATE_ORDER } = require("../config/matrixSols.config");
 const matrixSolsConfig = config.get("matrixSols");
+const db = require("../providers/mongo");
 
 class MatrixSolsAdapter {
     constructor() {
@@ -59,20 +60,23 @@ class MatrixSolsAdapter {
             "X-Client-Id": this.clientId,
             "X-Signature": signature,
         };
-
-        const response = await fetch(`${matrixSolsConfig.baseURL}/${CREATE_ORDER.url}`, {
+        const url = `${matrixSolsConfig.baseURL}/${CREATE_ORDER.url}`
+        const response = await fetch(url, {
             method: "POST",
             headers: headers,
             body: JSON.stringify(payload),
         });
 
-        const data = await response.json();
-
+        const responseJson = await response.json();
+        /* db.insertOne("vendor-calls", { url, body: payload, vendor: 'matrix_sols', type: 'api', response: responseJson }).catch((err) => {
+            logger.error("Failed to log Matrix Sols api call", { error: err.message });
+        });
+        */
         if (!response.ok) {
-            throw new Error(data.message || `API Error: ${response.status}`);
+            throw new Error(responseJson.message || `API Error: ${response.status}`);
         }
 
-        return data.data
+        return responseJson.data
     }
 
     /**

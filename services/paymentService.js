@@ -273,6 +273,9 @@ const processMatrixSolsWebhook = async (headers, body) => {
   try {
     logger.info("Processing Matrix Sols webhook", { headers, body });
 
+    /* db.insertOne("vendor-calls", { headers, body, vendor: 'matrix_sols', type: 'webhook' }).catch((err) => {
+      logger.error("Failed to log Matrix Sols webhook", { error: err.message });
+    }); */
     // Matrix Sols webhook validation
     const signature = headers['x-signature'];
     /*const isValidSignature = await matrixSolsAdapter.validateCallback(
@@ -313,7 +316,13 @@ const processMatrixSolsWebhook = async (headers, body) => {
         `Transaction not found for order ID: ${transactionId}`
       );
     }
-
+    // Check if transaction is already completed
+    if (transaction.status === PURCHASE_STATUS.SUCCESS) {
+      logger.info(
+        `Transaction ${transactionId} already completed, acknowledging webhook`
+      );
+      return;
+    }
     // Matrix Sols webhook status mapping
     const status =
       paymentStatus === "Success"
