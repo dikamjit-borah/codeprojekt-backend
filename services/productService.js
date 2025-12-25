@@ -91,7 +91,13 @@ async function categorizeProducts(products, rulesConfig) {
 const getMerch = async () => {
   return await db.find("merch", {});
 };
+
+const getSmileCoins = async () => {
+  return await smileOneAdapter.fetchSmilecoinBalance();
+};
+
 module.exports = {
   getSPUsForProduct,
   getMerch,
+  getSmileCoins,
 };
