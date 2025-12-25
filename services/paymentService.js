@@ -32,8 +32,8 @@ const purchaseSPU = async (
     logger.info("Initiating purchase", {
       transactionId,
       spuId,
+      spuDetails,
       spuType,
-      amountInINR: spuDetails.price_inr,
     });
 
     const additionalFields = await validateSPUType(
@@ -104,7 +104,7 @@ async function hasSufficientSmileCoin(spuDetails) {
     const smileOneBalance = await smileOneAdapter.fetchSmilecoinBalance();
     const brazilianRealToSmileCoin = (await fetchAppConfigs())[0].brazilianRealToSmileCoin;
 
-    const priceInSmileCoin = spuDetails.price * brazilianRealToSmileCoin;
+    const priceInSmileCoin = sum(map(spuDetails, "price")) * brazilianRealToSmileCoin;
     logger.info(
       `Smile Coin balance: ${smileOneBalance}, Price in Smile Coin: ${priceInSmileCoin}`
     );
@@ -645,7 +645,7 @@ async function callVendorAndPlaceOrder(spuDetail, transactionId, playerDetails) 
       );
       subStatus = PURCHASE_SUBSTATUS.ORDER_PLACED;
     } else {
-      logger.info(
+      logger.error(
         `Vendor order failed for transaction ${transactionId} spuId ${spuDetail.spuId}`
       );
       subStatus = PURCHASE_SUBSTATUS.VENDOR_FAILED;
