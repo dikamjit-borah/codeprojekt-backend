@@ -20,7 +20,17 @@ const getMerch = async (req, res, next) => {
   }
 };
 
+const getSmileCoins = async (req, res, next) => {
+  try {
+    const result = await productService.getSmileCoins();
+    res.success(200, "Smile coins fetched successfully", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getSPUsForProduct,
   getMerch,
+  getSmileCoins,
 };
