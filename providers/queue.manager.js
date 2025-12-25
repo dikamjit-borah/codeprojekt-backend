@@ -9,7 +9,7 @@ const options = {
     host: config.redis.host,
     username: config.redis.username,
     password: config.redis.password || undefined,
-    tls: config.redis.tls,
+    tls: true, //set TLS to true only for stage on render
     db: config.redis.database || 0,
     connectTimeout: 10000,
     maxRetriesPerRequest: 3,

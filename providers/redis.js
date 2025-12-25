@@ -25,6 +25,7 @@ async function isRedisAvailable() {
       username: redisConfig.username,
       password: redisConfig.password,
       database: redisConfig.db || 0,
+      tls: true, //set TLS to true only for stage on render
     });
     logger.info(`Checking Redis at ${redisConfig.host}:${redisConfig.port}`);
     
