@@ -62,13 +62,16 @@ const purchaseSPU = async (
       redirectUrlWithTransactionId
     );
 
+    const orderId = gatewayResponse.orderId
     // Update status after successful gateway init
     await updateTransactionStatus(
       transactionId,
       PURCHASE_STATUS.PENDING,
       PURCHASE_SUBSTATUS.GATEWAY_INITIATED,
-      { gatewayResponse, orderId: gatewayResponse.orderId, }
+      { gatewayResponse, orderId }
     );
+
+    checkMatrixSolsOrderStatus(orderId)
 
     return {
       transactionId,
@@ -584,6 +587,24 @@ async function getTransactionStatus(transactionId) {
   }
 }
 
+async function checkMatrixSolsOrderStatus(orderId) {
+  try {
+    logger.info(`Checking Matrix Sols order status for order ID: ${orderId}`);
+
+    // Call Matrix Sols adapter to check order status
+    const orderStatus = await matrixSolsAdapter.checkOrderStatus(orderId);
+
+    if (!orderStatus.success) {
+      throw createHttpError(502, `Failed to check order status: ${orderStatus.error}`);
+    }
+
+    return await processMatrixSolsWebhook({ "x-signature": "check_upi_order_status" }, orderStatus)
+  } catch (error) {
+    logger.error(`Failed to check Matrix Sols order status: ${error.message}`);
+    throw error;
+  }
+}
+
 async function updateTransactionWithStage(
   transactionId,
   status,
@@ -666,5 +687,6 @@ module.exports = {
   processMatrixSolsWebhook,
   processGameItemPurchase,
   getTransactionStatus,
+  checkMatrixSolsOrderStatus,
   updateTransactionWithStage,
 };
