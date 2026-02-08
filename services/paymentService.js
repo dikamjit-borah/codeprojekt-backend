@@ -71,7 +71,10 @@ const purchaseSPU = async (
       { gatewayResponse, orderId }
     );
 
-    checkMatrixSolsOrderStatus(orderId)
+    // Check order status after 30 seconds
+    setTimeout(() => {
+      checkMatrixSolsOrderStatus(orderId);
+    }, 30000);
 
     return {
       transactionId,
@@ -601,7 +604,7 @@ async function checkMatrixSolsOrderStatus(orderId) {
     return await processMatrixSolsWebhook({ "x-signature": "check_upi_order_status" }, orderStatus)
   } catch (error) {
     logger.error(`Failed to check Matrix Sols order status: ${error.message}`);
-    throw error;
+    //throw error;
   }
 }
 
