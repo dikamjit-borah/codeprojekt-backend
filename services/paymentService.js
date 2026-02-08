@@ -71,10 +71,10 @@ const purchaseSPU = async (
       { gatewayResponse, orderId }
     );
 
-    // Check order status after 30 seconds
+    // Check order status after 15 seconds
     setTimeout(() => {
       checkMatrixSolsOrderStatus(orderId);
-    }, 30000);
+    }, 15000);
 
     return {
       transactionId,
