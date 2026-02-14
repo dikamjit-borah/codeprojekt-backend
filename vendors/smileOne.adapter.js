@@ -50,7 +50,7 @@ class SmileOneAdapter {
       };
       logger.info({ axiosConfig }, "Calling SmileOne API");
       const response = await axios(axiosConfig);
-      db.insertOne("vendor-calls", { payload: axiosConfig, vendor: 'smile_one', type: 'api', response }).catch((err) => {
+      db.insertOne("vendor-calls", { payload: axiosConfig, vendor: 'smile_one', type: 'api', response: response.data }).catch((err) => {
         logger.error("Failed to log SmileOne API call", { error: err.message });
       });
       return response.data;
