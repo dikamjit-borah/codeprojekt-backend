@@ -48,7 +48,10 @@ const purchaseSPU = async (
       }
     ]);
 
-    const spuDetails = result[0]?.categorizedSPUs || [];
+    const spuDetails = (result[0]?.categorizedSPUs || []).map(spu => ({
+      ...spu,
+      spuId: spu.id
+    }));
     if (spuDetails.length === 0) {
       throw createHttpError(404, `SPU details not found for provided spuIds`);
     }
