@@ -18,7 +18,7 @@ const { fetchAppConfigs } = require("../utils/helpers");
 
 const purchaseSPU = async (
   spuId,
-  //spuDetails,
+  spuDetails,
   spuType,
   userDetails,
   playerDetails,
@@ -29,9 +29,6 @@ const purchaseSPU = async (
   const redirectUrlWithTransactionId = `${'https://codeprojekt.shop/transaction-status'}`
 
   try {
-    const spuDetails = db.findOne("spus-modified", { spuId })
-    if (!spuDetails)
-      throw createHttpError(400, "Invalid SPU ID");
     logger.info("Initiating purchase", {
       transactionId,
       spuId,

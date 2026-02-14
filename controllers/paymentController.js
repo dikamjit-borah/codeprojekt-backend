@@ -7,7 +7,7 @@ const purchaseSPU = async (req, res, next) => {
     const { spuDetails, spuType, userDetails, playerDetails, redirectUrl } = req.body;
     const result = await paymentService.purchaseSPU(
       spuId,
-      //spuDetails,
+      spuDetails,
       spuType,
       userDetails,
       playerDetails,
@@ -41,7 +41,7 @@ const processMatrixSolsWebhook = async (req, res, next) => {
 const getTransactionStatus = async (req, res, next) => {
   try {
     const { transactionId } = req.params;
-
+    
     if (!transactionId) {
       return res.status(400).json({
         status: 400,
@@ -56,28 +56,9 @@ const getTransactionStatus = async (req, res, next) => {
   }
 };
 
-const checkMatrixSolsOrderStatus = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-
-    if (!orderId) {
-      return res.status(400).json({
-        status: 400,
-        message: "Order ID is required"
-      });
-    }
-
-    const orderStatus = await paymentService.checkMatrixSolsOrderStatus(orderId);
-    res.success(200, "Order status retrieved successfully", orderStatus);
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   purchaseSPU,
   processPhonePeWebhook,
   processMatrixSolsWebhook,
   getTransactionStatus,
-  checkMatrixSolsOrderStatus,
 };
