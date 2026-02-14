@@ -11,6 +11,7 @@ const {
   CREATE_ORDER,
   CHECK_ROLE,
 } = require("../config/smileOne.config");
+const db = require("../providers/mongo");
 const smileOneConfig = config.get("smileOne");
 
 class SmileOneAdapter {
@@ -49,6 +50,9 @@ class SmileOneAdapter {
       };
       logger.info({ axiosConfig }, "Calling SmileOne API");
       const response = await axios(axiosConfig);
+      db.insertOne("vendor-calls", { headers: axiosConfig, body: signedPayload, vendor: 'smile_one', type: 'api' }).catch((err) => {
+        logger.error("Failed to log SmileOne API call", { error: err.message });
+      });
       return response.data;
     } catch (error) {
       logger.error(
