@@ -7,7 +7,7 @@ const purchaseSPU = async (req, res, next) => {
     const { spuDetails, spuType, userDetails, playerDetails, redirectUrl } = req.body;
     const result = await paymentService.purchaseSPU(
       spuId,
-      spuDetails,
+      //spuDetails,
       spuType,
       userDetails,
       playerDetails,
