@@ -18,7 +18,7 @@ const { fetchAppConfigs } = require("../utils/helpers");
 
 const purchaseSPU = async (
   spuId,
-  //spuDetails,
+  _spuDetails,
   spuType,
   userDetails,
   playerDetails,
@@ -29,9 +29,29 @@ const purchaseSPU = async (
   const redirectUrlWithTransactionId = `${'https://codeprojekt.shop/transaction-status'}`
 
   try {
-    const spuDetails = db.findOne("spus-modified", { spuId })
-    if (!spuDetails)
-      throw createHttpError(400, "Invalid SPU ID");
+    // Extract spuIds from spuDetails array
+    const spuIds = map(_spuDetails, 'spuId');
+
+    // Fetch matching SPUs from mobilelegends product
+    const result = await db.aggregate("spus-modified", [
+      { $match: { product: "mobilelegends" } },
+      {
+        $project: {
+          categorizedSPUs: {
+            $filter: {
+              input: "$categorizedSPUs",
+              as: "spu",
+              cond: { $in: [{ $toString: "$$spu.id" }, spuIds] }
+            }
+          }
+        }
+      }
+    ]);
+
+    const spuDetails = result[0]?.categorizedSPUs || [];
+    if (spuDetails.length === 0) {
+      throw createHttpError(404, `SPU details not found for provided spuIds`);
+    }
     logger.info("Initiating purchase", {
       transactionId,
       spuId,
