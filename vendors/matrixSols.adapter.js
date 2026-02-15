@@ -1,8 +1,9 @@
 const config = require("config");
 const crypto = require("crypto");
-const { CREATE_ORDER } = require("../config/matrixSols.config");
+const { CREATE_ORDER, CHECK_ORDER_STATUS } = require("../config/matrixSols.config");
 const matrixSolsConfig = config.get("matrixSols");
 const db = require("../providers/mongo");
+const logger = require("../utils/logger");
 
 class MatrixSolsAdapter {
     constructor() {
@@ -121,10 +122,10 @@ class MatrixSolsAdapter {
 
     /**
      * Check the status of a payment order
-     * @param {string} orderId - Order ID to check status for
+     * @param {string} orderId - Order ID to check status for (e.g., "MSOLSacb54385cc")
      * @returns {Promise<Object>} - Order status response
      */
-    async getOrderStatus(orderId) {
+    async checkOrderStatus(orderId) {
         try {
             const payload = {
                 order_id: orderId,
@@ -138,32 +139,47 @@ class MatrixSolsAdapter {
                 "X-Signature": signature,
             };
 
-            const response = await fetch(this.checkOrderStatusEndpoint, {
-                method: "POST",
+            const url = `${matrixSolsConfig.baseURL}${CHECK_ORDER_STATUS.url}`;
+
+            const response = await fetch(url, {
+                method: CHECK_ORDER_STATUS.method,
                 headers: headers,
                 body: JSON.stringify(payload),
             });
 
-            const data = await response.json();
+            const responseJson = await response.json();
+
+            // Log the API call
+            db.insertOne("vendor-calls", { 
+                url, 
+                body: payload, 
+                vendor: 'matrix_sols', 
+                type: 'check_order_status', 
+                response: responseJson 
+            }).catch((err) => {
+                logger.error("Failed to log Matrix Sols check order status call", { error: err.message });
+            });
 
             if (!response.ok) {
-                throw new Error(data.message || `API Error: ${response.status}`);
+                throw new Error(responseJson.message || `API Error: ${response.status}`);
             }
 
             return {
-                success: response.status === 200,
-                orderId: data.data?.order_id,
-                amount: data.data?.amount,
-                utrNumber: data.data?.utr_number,
-                dateTime: data.data?.date_time,
-                status: data.message,
-                rawResponse: data,
+                success: true,
+                orderId: responseJson.data?.order_id,
+                amount: responseJson.data?.amount,
+                utrNumber: responseJson.data?.utr_number,
+                dateTime: responseJson.data?.date_time,
+                status: responseJson.data?.status,
+                message: responseJson.message,
+                rawResponse: responseJson,
             };
         } catch (error) {
+            logger.error(`Matrix Sols check order status error: ${error.message}`);
             return {
                 success: false,
                 error: error.message,
-                orderId: null,
+                orderId: orderId,
             };
         }
     }
