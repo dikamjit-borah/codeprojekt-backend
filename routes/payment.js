@@ -11,10 +11,12 @@ router.post(
     paymentController.purchaseSPU
 );
 
-// Webhook endpoints
+// Generic webhook endpoint (recommended)
+router.post("/webhook/:vendorName", paymentController.processPaymentWebhook);
+
+// Legacy webhook endpoints (backward compatibility)
 router.post("/phonePe/webhook", paymentController.processPhonePeWebhook);
 router.post("/matrixSols/webhook", paymentController.processMatrixSolsWebhook);
-
 
 // Transaction status endpoints
 router.get("/transaction/:transactionId/status", paymentController.getTransactionStatus);

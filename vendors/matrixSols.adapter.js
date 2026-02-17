@@ -3,9 +3,11 @@ const crypto = require("crypto");
 const { CREATE_ORDER } = require("../config/matrixSols.config");
 const matrixSolsConfig = config.get("matrixSols");
 const db = require("../providers/mongo");
+const PaymentVendor = require("./PaymentVendor");
 
-class MatrixSolsAdapter {
+class MatrixSolsAdapter extends PaymentVendor {
     constructor() {
+        super("matrix-sols");
         this.apiKey = matrixSolsConfig.apiKey;
         this.clientId = matrixSolsConfig.clientId;
     }
@@ -81,13 +83,17 @@ class MatrixSolsAdapter {
 
     /**
      * Validate webhook notification from Matrix Sols
-     * @param {Object} webhookPayload - Webhook payload from Matrix Sols
-     * @param {string} signature - X-Signature header from webhook request
+     * @param {Object} headers - Request headers containing X-Signature
+     * @param {Object} body - Webhook payload from Matrix Sols
      * @returns {Promise<boolean>} - Whether signature is valid
      */
-    async validateCallback(webhookPayload, signature) {
+    async validateCallback(headers, body) {
         try {
-            const expectedSignature = await this.generateSignature(webhookPayload);
+            const signature = headers['x-signature'];
+            if (!signature) {
+                return false;
+            }
+            const expectedSignature = await this.generateSignature(body);
             return signature === expectedSignature;
         } catch (error) {
             console.error(`Webhook validation error: ${error.message}`);
