@@ -20,6 +20,22 @@ const purchaseSPU = async (req, res, next) => {
   }
 };
 
+/**
+ * Generic webhook handler for any payment vendor
+ */
+const processPaymentWebhook = async (req, res, next) => {
+  try {
+    const vendorName = req.params.vendorName;
+    await paymentService.processPaymentWebhook(vendorName, req.headers, req.body);
+    res.success(200, "Webhook processed successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @deprecated Use processPaymentWebhook instead
+ */
 const processPhonePeWebhook = async (req, res, next) => {
   try {
     await paymentService.processPhonePeWebhook(req.headers, req.body);
@@ -29,6 +45,9 @@ const processPhonePeWebhook = async (req, res, next) => {
   }
 };
 
+/**
+ * @deprecated Use processPaymentWebhook instead
+ */
 const processMatrixSolsWebhook = async (req, res, next) => {
   try {
     await paymentService.processMatrixSolsWebhook(req.headers, req.body);
@@ -58,6 +77,8 @@ const getTransactionStatus = async (req, res, next) => {
 
 module.exports = {
   purchaseSPU,
+  processPaymentWebhook,
+  // Backward compatibility
   processPhonePeWebhook,
   processMatrixSolsWebhook,
   getTransactionStatus,
