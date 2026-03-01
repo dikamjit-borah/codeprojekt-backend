@@ -12,18 +12,45 @@ class MatrixSolsAdapter {
     }
 
     /**
+     * Helper function to recursively sort object keys alphabetically
+     * @param {*} obj - Object to sort
+     * @returns {*} - Object with sorted keys
+     */
+    sortObjectKeys(obj) {
+        // Return the value directly if it is not an object or is null
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+
+        // Specific handling to recursively sort items within arrays
+        if (Array.isArray(obj)) {
+            return obj.map(item => this.sortObjectKeys(item));
+        }
+
+        // Get keys, sort them, and rebuild the object in that specific order
+        return Object.keys(obj).sort().reduce((sortedObj, key) => {
+            sortedObj[key] = this.sortObjectKeys(obj[key]);
+            return sortedObj;
+        }, {});
+    }
+
+    /**
      * Generate HMAC-SHA256 signature for request authentication
      * @param {Object} payload - Request payload object
      * @returns {Promise<string>} - Hex encoded signature
      */
     async generateSignature(payload) {
         try {
-            const serializedBody = JSON.stringify(payload);
-            const signatureContract = `${this.apiKey};${serializedBody}`;
+            // Create a new version of the payload where all keys are sorted
+            const sortedPayload = this.sortObjectKeys(payload);
+            
+            // Convert the sorted object to a JSON string
+            const serializedBody = JSON.stringify(sortedPayload);
 
+            // Generate the signature using HMAC-SHA256
             const signature = crypto
                 .createHmac("sha256", this.apiKey)
-                .update(signatureContract)
+                .update(serializedBody)
                 .digest("hex");
 
             return signature;
