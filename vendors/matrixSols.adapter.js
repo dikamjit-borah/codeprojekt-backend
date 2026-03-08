@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const { CREATE_ORDER } = require("../config/matrixSols.config");
 const matrixSolsConfig = config.get("matrixSols");
 const db = require("../providers/mongo");
-const PaymentVendor = require("./PaymentVendor");
+const PaymentVendor = require("../vendors/paymentVendor.abstract");
 
 class MatrixSolsAdapter extends PaymentVendor {
     constructor() {

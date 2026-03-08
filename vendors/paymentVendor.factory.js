@@ -79,14 +79,16 @@ const factory = new PaymentVendorFactory();
 try {
   const matrixSolsAdapter = require("./matrixSols.adapter");
   const phonePeAdapter = require("./phonePe.adapter");
+  const zeroUpiGatewayAdapter = require("./zeroUpiGateway.adapter");
   
-  // Get default vendor from config or use matrix-sols as default
+  // Get default vendor from config or use zeroupi-gateway as default
   const defaultVendor = config.has("payment.defaultVendor") 
     ? config.get("payment.defaultVendor") 
-    : "matrix-sols";
+    : "zeroupi-gateway";
   
   factory.register("matrix-sols", matrixSolsAdapter, defaultVendor === "matrix-sols");
   factory.register("phonePe", phonePeAdapter, defaultVendor === "phonePe");
+  factory.register("zeroupi-gateway", zeroUpiGatewayAdapter, defaultVendor === "zeroupi-gateway");
   
   logger.info(`Payment vendor factory initialized with default: ${defaultVendor}`);
 } catch (error) {

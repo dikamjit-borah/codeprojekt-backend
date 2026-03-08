@@ -6,7 +6,7 @@ const {
   Env,
   RefundRequest,
 } = require("pg-sdk-node");
-const PaymentVendor = require("./PaymentVendor");
+const PaymentVendor = require("../vendors/paymentVendor.abstract");
 const env = config.get("env");
 const phonePeConfig = config.get("phonePe");
 

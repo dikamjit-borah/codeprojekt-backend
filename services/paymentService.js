@@ -3,7 +3,7 @@ const createHttpError = require("http-errors");
 const UUID = require("uuid");
 const { map, filter, sum } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
-const paymentVendorFactory = require("../vendors/PaymentVendorFactory");
+const paymentVendorFactory = require("../vendors/paymentVendor.factory");
 const {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
@@ -137,7 +137,7 @@ async function initiateGatewayPayment(
     const response = await paymentVendor.pay({
       amount: priceInInr,
       redirectUrl,
-      merchantOrderId: `${spuId}-${transactionId}`,
+      orderId: `${spuId}-${transactionId}`,
     });
 
     return {
