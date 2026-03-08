@@ -1,11 +1,22 @@
 const productService = require("../services/productService");
 
-const getSPUsForProduct = async (req, res, next) => {
+const fetchSPUsFromVendor = async (req, res, next) => {
   try {
     const product = req.params.product;
-    const result = await productService.getSPUsForProduct(product);
+    const result = await productService.fetchSPUsFromVendor(product);
 
     res.success(200, "SPUs fetched successfully", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getCategorizedSPUsForProduct = async (req, res, next) => {
+  try {
+    const product = req.params.product;
+    const result = await productService.getCategorizedSPUsForProduct(product);
+
+    res.success(200, "Categorized SPUs fetched successfully", result);
   } catch (error) {
     next(error);
   }
@@ -30,7 +41,8 @@ const getSmileCoins = async (req, res, next) => {
 };
 
 module.exports = {
-  getSPUsForProduct,
+  fetchSPUsFromVendor,
+  getCategorizedSPUsForProduct,
   getMerch,
   getSmileCoins,
 };
