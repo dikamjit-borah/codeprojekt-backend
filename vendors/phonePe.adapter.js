@@ -6,11 +6,13 @@ const {
   Env,
   RefundRequest,
 } = require("pg-sdk-node");
+const PaymentVendor = require("../vendors/paymentVendor.abstract");
 const env = config.get("env");
 const phonePeConfig = config.get("phonePe");
 
-class PhonePeAdapter {
+class PhonePeAdapter extends PaymentVendor {
   constructor() {
+    super("phonePe");
     this.client = StandardCheckoutClient.getInstance(
       phonePeConfig.clientId,
       phonePeConfig.clientSecret,
@@ -32,11 +34,20 @@ class PhonePeAdapter {
       .amount(amount)
       .redirectUrl(redirectUrl || phonePeConfig.redirectUrl)
       .build();
-    return await this.client.pay(payRequest);
+    
+    const response = await this.client.pay(payRequest);
+    
+    // Normalize response to match base class interface
+    return {
+      order_id: merchantOrderId || randomUUID(),
+      payment_url: response.redirectUrl || response.url,
+      ...response
+    };
   }
 
-  async validateCallback(authorizationHeaderData, callbackResponseBody) {
-    const phonepeS2SCallbackResponseBodyString = JSON.stringify(callbackResponseBody);
+  async validateCallback(headers, body) {
+    const authorizationHeaderData = headers.authorization || headers.Authorization;
+    const phonepeS2SCallbackResponseBodyString = JSON.stringify(body);
     const callbackResponse = this.client.validateCallback(
       phonePeConfig.merchantUsername,
       phonePeConfig.merchantPassword,
@@ -44,6 +55,18 @@ class PhonePeAdapter {
       phonepeS2SCallbackResponseBodyString
     );
     return callbackResponse;
+  }
+
+  async handleWebhookNotification(body) {
+    // PhonePe webhook payload structure
+    return {
+      success: true,
+      orderId: body.payload?.merchantOrderId,
+      amount: body.payload?.amount,
+      status: body.type === "ORDER_COMPLETED" ? "Success" : "Failed",
+      transactionId: body.payload?.transactionId,
+      rawPayload: body
+    };
   }
 
   async getOrderStatus(merchantOrderId) {

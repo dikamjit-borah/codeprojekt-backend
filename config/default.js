@@ -35,4 +35,11 @@ module.exports = {
     partnerId: process.env.MOOGOLD_PARTNER_ID,
     secretKey: process.env.MOOGOLD_SECRET_KEY,
   },
+  zeroUpiGateway: {
+    baseURL: process.env.ZEROUPI_BASE_URL,
+    apiKey: process.env.ZEROUPI_API_KEY,
+  },
+  payment: {
+    defaultVendor: "zeroupi-gateway",
+  },
 };

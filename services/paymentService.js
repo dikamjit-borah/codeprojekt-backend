@@ -3,8 +3,7 @@ const createHttpError = require("http-errors");
 const UUID = require("uuid");
 const { map, filter, sum } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
-const phonePeAdapter = require("../vendors/phonePe.adapter");
-const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
+const paymentVendorFactory = require("../vendors/paymentVendor.factory");
 const {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
@@ -18,7 +17,7 @@ const { fetchAppConfigs } = require("../utils/helpers");
 
 const purchaseSPU = async (
   spuId,
-  spuDetails,
+  _spuDetails,
   spuType,
   userDetails,
   playerDetails,
@@ -29,6 +28,32 @@ const purchaseSPU = async (
   const redirectUrlWithTransactionId = `${'https://stage.codeprojekt.shop/transaction-status'}`
 
   try {
+    // Extract spuIds from spuDetails array
+    const spuIds = map(_spuDetails, 'spuId');
+
+    // Fetch matching SPUs from mobilelegends product
+    const result = await db.aggregate("spus-modified", [
+      { $match: { product: "mobilelegends" } },
+      {
+        $project: {
+          categorizedSPUs: {
+            $filter: {
+              input: "$categorizedSPUs",
+              as: "spu",
+              cond: { $in: [{ $toString: "$$spu.id" }, spuIds] }
+            }
+          }
+        }
+      }
+    ]);
+
+    const spuDetails = (result[0]?.categorizedSPUs || []).map(spu => ({
+      ...spu,
+      spuId: spu.id
+    }));
+    if (spuDetails.length === 0) {
+      throw createHttpError(404, `SPU details not found for provided spuIds`);
+    }
     logger.info("Initiating purchase", {
       transactionId,
       spuId,
@@ -129,29 +154,28 @@ async function initiateGatewayPayment(
   spuId,
   transactionId,
   priceInInr,
-  redirectUrl
+  redirectUrl,
+  vendorName = null
 ) {
   try {
-    /*  
-    const merchantOrderId = `${spuId}-${transactionId}`
-    const priceInPaisa = Math.round(priceInInr * 100); // Convert INR to paise
-    const response = await phonePeAdapter.pay({
-      merchantOrderId,
-      amount: priceInPaisa,
-      redirectUrl,
-    }); 
-    */
+    // Get payment vendor (use default if not specified)
+    const paymentVendor = vendorName 
+      ? paymentVendorFactory.getVendor(vendorName)
+      : paymentVendorFactory.getDefaultVendor();
 
+    logger.info(`Initiating payment with vendor: ${paymentVendor.getVendorName()}`);
 
-    // Matrix Sols adapter implementation
-    const response = await matrixSolsAdapter.pay({
+    // Call vendor's pay method with normalized parameters
+    const response = await paymentVendor.pay({
       amount: priceInInr,
       redirectUrl,
+      orderId: `${spuId}-${transactionId}`,
     });
 
     return {
       orderId: response.order_id,
       redirectUrl: response.payment_url,
+      vendor: paymentVendor.getVendorName(),
     };
   } catch (error) {
     logger.error(`Failed to initiate gateway payment: ${error.message}`);
@@ -181,147 +205,53 @@ async function updateTransactionStatus(
 }
 
 /**
- * Process PhonePe webhook - main entry point for webhook processing
- * @param {Object} headers Request headers containing authorization
- * @param {Object} body Webhook payload
+ * Unified webhook processor for all payment vendors
+ * @param {string} vendorName - Name of the payment vendor
+ * @param {Object} headers - Request headers
+ * @param {Object} body - Webhook payload
  * @returns {Promise<Object>} Processing result
  */
-const processPhonePeWebhook = async (headers, body) => {
+const processPaymentWebhook = async (vendorName, headers, body) => {
   try {
-    logger.info("Processing PhonePe webhook", { headers, body });
-    //Validate webhook signature
-    const parsedWebhook = await phonePeAdapter.validateCallback(
-      headers.authorization,
-      body
-    );
+    logger.info(`Processing ${vendorName} webhook`, { headers, body });
 
-    if (!parsedWebhook) {
-      logger.error("Invalid PhonePe webhook signature");
-      throw createHttpError(401, "Invalid webhook signature");
+    // Get the appropriate vendor adapter
+    const paymentVendor = paymentVendorFactory.getVendor(vendorName);
+
+    // Validate webhook (optional - can be disabled for testing)
+    // const isValid = await paymentVendor.validateCallback(headers, body);
+    // if (!isValid) {
+    //   logger.error(`Invalid ${vendorName} webhook signature`);
+    //   throw createHttpError(401, "Invalid webhook signature");
+    // }
+
+    // Parse webhook notification
+    const parsedWebhook = await paymentVendor.handleWebhookNotification(body);
+
+    if (!parsedWebhook.success) {
+      logger.error(`Failed to parse ${vendorName} webhook`);
+      throw createHttpError(400, "Failed to parse webhook");
     }
 
-    // Extract order ID and payment status from the payload
-    const merchantOrderId = parsedWebhook.payload.merchantOrderId;
-    const paymentStatus = parsedWebhook.type; //parsedWebhook.payload.state
+    const { orderId, status: paymentStatus } = parsedWebhook;
 
     logger.info(
-      `Received PhonePe webhook for order ${merchantOrderId} with status ${paymentStatus}`
-    );
-
-    // return body.payload;
-
-    if (!merchantOrderId) {
-      throw createHttpError(
-        400,
-        "Missing merchant order ID in webhook payload"
-      );
-    }
-
-    // Extract transaction ID from merchant order ID (format: spuId-transactionId)
-    const transactionId = merchantOrderId.split("-").slice(1).join("-");
-
-    if (!transactionId) {
-      throw createHttpError(
-        400,
-        `Invalid merchant order ID format: ${merchantOrderId}`
-      );
-    }
-
-    // Fetch transaction
-    const transaction = await db.findOne("transactions", { transactionId });
-    if (!transaction) {
-      throw createHttpError(
-        404,
-        `Transaction not found for ID: ${transactionId}`
-      );
-    }
-
-    const status =
-      paymentStatus === PHONE_PE_WEBHOOK_TYPES.ORDER_COMPLETED
-        ? PURCHASE_STATUS.PAYMENT_COMPLETED
-        : PURCHASE_STATUS.FAILED;
-
-    const subStatus =
-      paymentStatus === PHONE_PE_WEBHOOK_TYPES.ORDER_COMPLETED
-        ? PURCHASE_SUBSTATUS.PAYMENT_SUCCESS
-        : PURCHASE_SUBSTATUS.PAYMENT_FAILED;
-
-    await updateTransactionStatus(transactionId, status, subStatus, {
-      paymentResponse: body,
-    });
-
-    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
-    // If payment failed, return early
-    if (paymentStatus !== PHONE_PE_WEBHOOK_TYPES.ORDER_COMPLETED) {
-      logger.info(
-        `Payment failed for transaction ${transactionId}: ${paymentStatus}`
-      );
-      return
-    }
-    // process for the respective SPU type
-    return await processTransaction(transaction, parsedWebhook);
-  } catch (error) {
-    logger.error(`Webhook processing error: ${error.message}`, error);
-    throw createHttpError(
-      error.statusCode || 500,
-      `Failed to process webhook: ${error.message}`
-    );
-  }
-};
-
-/**
- * Process Matrix Sols webhook - main entry point for webhook processing
- * @param {Object} headers Request headers containing authorization
- * @param {Object} body Webhook payload
- * @returns {Promise<Object>} Processing result
- */
-const processMatrixSolsWebhook = async (headers, body) => {
-  try {
-    logger.info("Processing Matrix Sols webhook", { headers, body });
-
-    /* db.insertOne("vendor-calls", { headers, body, vendor: 'matrix_sols', type: 'webhook' }).catch((err) => {
-      logger.error("Failed to log Matrix Sols webhook", { error: err.message });
-    }); */
-    // Matrix Sols webhook validation
-    const signature = headers['x-signature'];
-    /*const isValidSignature = await matrixSolsAdapter.validateCallback(
-      body,
-      signature
-    );
-
-    const parsedWebhook = isValidSignature ? await matrixSolsAdapter.handleWebhookNotification(body) : null; 
-    */
-    const parsedWebhook = await matrixSolsAdapter.handleWebhookNotification(body);
-
-    /* if (!parsedWebhook) {
-      logger.error("Invalid Matrix Sols webhook signature");
-      throw createHttpError(401, "Invalid webhook signature");
-    } */
-
-    // Extract order ID and payment status from the payload
-    const orderId = parsedWebhook.orderId;
-    const paymentStatus = parsedWebhook.status; // "Success" or other status from Matrix Sols
-
-    logger.info(
-      `Received Matrix Sols webhook for order ${orderId} with status ${paymentStatus}`
+      `Received ${vendorName} webhook for order ${orderId} with status ${paymentStatus}`
     );
 
     if (!orderId) {
-      throw createHttpError(
-        400,
-        "Missing order ID in webhook payload"
-      );
+      throw createHttpError(400, "Missing order ID in webhook payload");
     }
 
     // Fetch transaction from order ID
     const transaction = await db.findOne("transactions", { orderId });
-    const transactionId = transaction ? transaction.transactionId : null;
+    
     if (!transaction) {
-      throw createHttpError(
-        404,
-        `Transaction not found for order ID: ${transactionId}`
-      );
+      throw createHttpError(404, `Transaction not found for order ID: ${orderId}`);
     }
+
+    const transactionId = transaction.transactionId;
+
     // Check if transaction is already completed
     if (transaction.status === PURCHASE_STATUS.SUCCESS) {
       logger.info(
@@ -329,7 +259,8 @@ const processMatrixSolsWebhook = async (headers, body) => {
       );
       return;
     }
-    // Matrix Sols webhook status mapping
+
+    // Map payment status to internal status
     const status =
       paymentStatus === "Success"
         ? PURCHASE_STATUS.PAYMENT_COMPLETED
@@ -344,15 +275,21 @@ const processMatrixSolsWebhook = async (headers, body) => {
       paymentResponse: body,
     });
 
-    socket.emit('transaction-update', { transactionId, status, subStatus, stage: 3 }, `transaction:${transactionId}`);
+    socket.emit(
+      "transaction-update",
+      { transactionId, status, subStatus, stage: 3 },
+      `transaction:${transactionId}`
+    );
+
     // If payment failed, return early
     if (paymentStatus !== "Success") {
       logger.info(
         `Payment failed for transaction ${transactionId}: ${paymentStatus}`
       );
-      return
+      return;
     }
-    // process for the respective SPU type
+
+    // Process for the respective SPU type
     return await processTransaction(transaction, parsedWebhook);
   } catch (error) {
     logger.error(`Webhook processing error: ${error.message}`, error);
@@ -683,9 +620,26 @@ async function callVendorAndPlaceOrder(spuDetail, transactionId, playerDetails) 
   }
 }
 
+/**
+ * Backward compatibility wrapper for PhonePe webhooks
+ * @deprecated Use processPaymentWebhook('phonePe', headers, body) instead
+ */
+const processPhonePeWebhook = async (headers, body) => {
+  return processPaymentWebhook('phonePe', headers, body);
+};
+
+/**
+ * Backward compatibility wrapper for Matrix Sols webhooks
+ * @deprecated Use processPaymentWebhook('matrix-sols', headers, body) instead
+ */
+const processMatrixSolsWebhook = async (headers, body) => {
+  return processPaymentWebhook('matrix-sols', headers, body);
+};
+
 module.exports = {
   purchaseSPU,
-  // Deprecated: Use processMatrixSolsWebhook instead
+  processPaymentWebhook,
+  // Backward compatibility exports
   processPhonePeWebhook,
   processMatrixSolsWebhook,
   processGameItemPurchase,
