@@ -5,54 +5,62 @@ const smileOneAdapter = require("../vendors/smileOne.adapter");
 const createHttpError = require("http-errors");
 const db = require("../providers/mongo");
 const { generateHash } = require("../utils/helpers");
-const { groupBy, get } = require("lodash");
+const { groupBy, map, reject } = require("lodash");
 const cache = require("../utils/internalCache");
 
-const getSPUsForProduct = async (product) => {
-  const [productSPUs, existingSpusDoc] = await Promise.all([
+const fetchSPUsFromVendor = async (product) => {
+  const [vendorSPUs, vendorSpusDoc, modifiedSpusDoc] = await Promise.all([
     smileOneAdapter.fetchProductSPUs(product),
     db.findOne("spus", { product }),
+    db.findOne("spus-modified", { product }),
   ]);
 
-  if (!productSPUs || (productSPUs.length === 0 && !existingSpusDoc)) {
+  if (!vendorSPUs?.length && !vendorSpusDoc && !modifiedSpusDoc) {
     throw createHttpError(404, "No SPUs found for the given product");
   }
 
-  const currentHash = generateHash(productSPUs);
+  const currentHash = generateHash(vendorSPUs);
+  const existingCategorizedSPUs = modifiedSpusDoc?.categorizedSPUs ?? [];
 
-  if (existingSpusDoc?.hash === currentHash) {
+  if (vendorSpusDoc?.hash === currentHash) {
     logger.info("No change in SPUs. Skipping update.");
-    const spusModifiedDoc = await db.findOne("spus-modified", { product });
-    return groupByCategory(spusModifiedDoc?.categorizedSPUs);
+    return combinedSPUs(vendorSPUs, existingCategorizedSPUs);
   }
 
-  const updateSpusPromise = db.updateOne(
+  logger.info("Change detected in SPUs. Updating database.");
+  db.updateOne(
     "spus",
     { product },
-    { $set: { product, productSPUs, hash: currentHash } },
+    { $set: { product, vendorSPUs, hash: currentHash } },
     { upsert: true }
   );
 
-  const configsForCategorization = await db.find("configs-category");
-  const categorizedSPUs = await categorizeProducts(
-    productSPUs,
-    configsForCategorization
-  );
+  const existingIds = new Set(map(existingCategorizedSPUs, "id"));
+  const newSPUs = reject(vendorSPUs, (spu) => existingIds.has(spu.id));
 
-  const updateModifiedPromise = db.updateOne(
+  if (!newSPUs.length) return combinedSPUs(vendorSPUs, existingCategorizedSPUs);
+
+  logger.info(`Found ${newSPUs.length} new SPUs. Adding to database.`);
+
+  const allCategorizedSPUs = [
+    ...existingCategorizedSPUs,
+    ...map(newSPUs, (spu) => ({ ...spu, price_inr: 100, category: "Uncategorized", isActive: false })),
+  ];
+
+  db.updateOne(
     "spus-modified",
     { product },
-    { $set: { product, categorizedSPUs, hash: currentHash } },
+    { $set: { product, categorizedSPUs: allCategorizedSPUs } },
     { upsert: true }
   );
 
-  Promise.all([updateSpusPromise, updateModifiedPromise]);
-  return groupByCategory(categorizedSPUs);
+  return combinedSPUs(vendorSPUs, allCategorizedSPUs);
 };
 
-function groupByCategory(spuArray) {
-  return groupBy(spuArray, "category");
-}
+const combinedSPUs = (vendor, categorizedSPUs) => ({
+  vendor,
+  categorized: groupBy(categorizedSPUs, "category"),
+});
 
 function extractFacts(product) {
   return {
@@ -64,29 +72,37 @@ async function categorizeProducts(products, rulesConfig) {
   const evaluationResults = await evaluateRules(
     products,
     rulesConfig,
-    extractFacts
+    extractFacts,
   );
 
   const brazilianRealToINR = (await fetchAppConfigs())[0].brazilianRealToINR;
   const categorizedSPUs = evaluationResults.map(
     ({ originalItem, matchedEvents }) => {
       const categoryEvent = matchedEvents.find(
-        (event) => event.type === "category"
+        (event) => event.type === "category",
       );
       return {
         ...originalItem,
         price_inr: parseFloat(
-          (parseFloat(originalItem.price) * parseFloat(brazilianRealToINR)).toFixed(2)
+          (
+            parseFloat(originalItem.price) * parseFloat(brazilianRealToINR)
+          ).toFixed(2),
         ),
         category: categoryEvent
           ? categoryEvent.params.category
           : "Uncategorized",
       };
-    }
+    },
   );
 
   return categorizedSPUs;
 }
+
+const getCategorizedSPUsForProduct = async (product) => {
+  const spusDoc = await db.findOne("spus-modified", { product });
+  const activeSPUs = spusDoc?.categorizedSPUs?.filter((spu) => spu.isActive);
+  return groupBy(activeSPUs, "category");
+};
 
 const getMerch = async () => {
   return await db.find("merch", {});
@@ -97,7 +113,8 @@ const getSmileCoins = async () => {
 };
 
 module.exports = {
-  getSPUsForProduct,
+  fetchSPUsFromVendor,
+  getCategorizedSPUsForProduct,
   getMerch,
   getSmileCoins,
 };
