@@ -31,7 +31,7 @@ const processPhonePeWebhook = async (req, res, next) => {
 
 const processMatrixSolsWebhook = async (req, res, next) => {
   try {
-    await paymentService.processMatrixSolsWebhook(req.headers, req.body);
+    await paymentService.processMatrixSolsWebhook(req.headers, req.body, req.rawBody);
     res.success(200, "Webhook processed successfully");
   } catch (error) {
     next(error);

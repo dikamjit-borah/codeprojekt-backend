@@ -4,13 +4,16 @@ const UUID = require("uuid");
 const { map, filter, sum } = require("lodash");
 const smileOneAdapter = require("../vendors/smileOne.adapter");
 const phonePeAdapter = require("../vendors/phonePe.adapter");
-const matrixSolsAdapter = require("../vendors/matrixSols.adapter");
 const {
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
   SPU_TYPES,
   PHONE_PE_WEBHOOK_TYPES,
+  MATRIX_SOLS_API_VERSION,
 } = require("../utils/constants");
+const matrixSolsAdapter = MATRIX_SOLS_API_VERSION === "v2"
+  ? require("../vendors/matrixSols.v2.adapter")
+  : require("../vendors/matrixSols.adapter");
 const logger = require("../utils/logger");
 const queueManager = require("../providers/queue.manager");
 const socket = require("../providers/socket");
@@ -275,28 +278,25 @@ const processPhonePeWebhook = async (headers, body) => {
  * @param {Object} body Webhook payload
  * @returns {Promise<Object>} Processing result
  */
-const processMatrixSolsWebhook = async (headers, body) => {
+const processMatrixSolsWebhook = async (headers, body, rawBody) => {
   try {
     logger.info("Processing Matrix Sols webhook", { headers, body });
 
     db.insertOne("vendor-calls", { headers, body, vendor: 'matrix_sols', type: 'webhook' }).catch((err) => {
       logger.error("Failed to log Matrix Sols webhook", { error: err.message });
     });
-    // Matrix Sols webhook validation
-    const signature = headers['x-signature'];
-    /*const isValidSignature = await matrixSolsAdapter.validateCallback(
-      body,
-      signature
-    );
 
-    const parsedWebhook = isValidSignature ? await matrixSolsAdapter.handleWebhookNotification(body) : null; 
-    */
-    const parsedWebhook = await matrixSolsAdapter.handleWebhookNotification(body);
+    const isV2 = MATRIX_SOLS_API_VERSION === "v2";
+    const signature = isV2 ? headers["x-webhook-signature"] : headers["x-signature"];
+    const validationTarget = isV2 ? rawBody : body;
 
-    /* if (!parsedWebhook) {
+    const isValidSignature = matrixSolsAdapter.validateCallback(validationTarget, signature);
+    if (!isValidSignature) {
       logger.error("Invalid Matrix Sols webhook signature");
       throw createHttpError(401, "Invalid webhook signature");
-    } */
+    }
+
+    const parsedWebhook = await matrixSolsAdapter.handleWebhookNotification(body);
 
     // Extract order ID and payment status from the payload
     const orderId = parsedWebhook.orderId;

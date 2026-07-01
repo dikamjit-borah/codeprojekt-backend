@@ -11,9 +11,20 @@ router.post(
     paymentController.purchaseSPU
 );
 
+// Captures raw body string before JSON parsing — required for v2 webhook signature validation
+const rawBodyCapture = (req, res, next) => {
+    let raw = "";
+    req.on("data", chunk => { raw += chunk; });
+    req.on("end", () => {
+        req.rawBody = raw;
+        try { req.body = JSON.parse(raw); } catch { req.body = {}; }
+        next();
+    });
+};
+
 // Webhook endpoints
 router.post("/phonePe/webhook", paymentController.processPhonePeWebhook);
-router.post("/matrixSols/webhook", paymentController.processMatrixSolsWebhook);
+router.post("/matrixSols/webhook", rawBodyCapture, paymentController.processMatrixSolsWebhook);
 
 
 // Transaction status endpoints

@@ -1,3 +1,6 @@
+// Feature Flags
+const MATRIX_SOLS_API_VERSION = "v2"; // set to "v1" to roll back to old API
+
 // Payment Status Constants
 
 const PURCHASE_STATUS = {
@@ -42,6 +45,7 @@ const SPU_TYPES = {
 
 // Export all constants
 module.exports = {
+  MATRIX_SOLS_API_VERSION,
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
   SPU_TYPES,
