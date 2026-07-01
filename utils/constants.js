@@ -1,6 +1,17 @@
 // Feature Flags
 const MATRIX_SOLS_API_VERSION = "v2"; // set to "v1" to roll back to old API
 
+// Matrix Sols order-status reconciliation (polling) config
+// Per-attempt delays in seconds. First poll runs DELAYS[0] after order creation;
+// each subsequent non-terminal poll schedules the next using DELAYS[attempt].
+// Total window: 15+30+45+60+60+60 = 270s (~4.5 min), 6 polls. Edit to tune cadence/window.
+const MATRIX_SOLS_RECONCILE_DELAYS = [15, 30, 45, 60, 60, 60];
+
+// API status values that mean the order has reached a terminal state.
+const MATRIX_SOLS_TERMINAL_SUCCESS = ["Success", "Refunded"];
+const MATRIX_SOLS_TERMINAL_FAILURE = ["Failed", "Cancelled", "Expired"];
+// Non-terminal (keep polling): "Pending", "Queue"
+
 // Payment Status Constants
 
 const PURCHASE_STATUS = {
@@ -46,6 +57,9 @@ const SPU_TYPES = {
 // Export all constants
 module.exports = {
   MATRIX_SOLS_API_VERSION,
+  MATRIX_SOLS_RECONCILE_DELAYS,
+  MATRIX_SOLS_TERMINAL_SUCCESS,
+  MATRIX_SOLS_TERMINAL_FAILURE,
   PURCHASE_STATUS,
   PURCHASE_SUBSTATUS,
   SPU_TYPES,

@@ -42,11 +42,13 @@ queue
  * @param {Object} options - Queue options
  * @returns {Promise<Object>} Job instance
  */
-async function addJob(jobName, jobData) {
+async function addJob(jobName, jobData, options = {}) {
   const { transactionId } = jobData;
   if (!transactionId) throw new Error("Transaction ID is required for queuing");
 
-  const idempotencyKey = `${jobName}:${transactionId}`;
+  // Callers can override the idempotency key (e.g. recurring reconcile jobs
+  // include the attempt so successive re-enqueues are not deduped away).
+  const idempotencyKey = options.idempotencyKey || `${jobName}:${transactionId}`;
 
   try {
     const existingJobs = await queue.getJobs(["active", "waiting", "delayed"]);
@@ -72,6 +74,7 @@ async function addJob(jobName, jobData) {
         type: "exponential",
         delay: 5000,
       },
+      ...(options.delay ? { delay: options.delay } : {}),
     });
 
     logger.info(

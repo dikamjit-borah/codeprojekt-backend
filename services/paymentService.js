@@ -10,6 +10,9 @@ const {
   SPU_TYPES,
   PHONE_PE_WEBHOOK_TYPES,
   MATRIX_SOLS_API_VERSION,
+  MATRIX_SOLS_RECONCILE_DELAYS,
+  MATRIX_SOLS_TERMINAL_SUCCESS,
+  MATRIX_SOLS_TERMINAL_FAILURE,
 } = require("../utils/constants");
 const matrixSolsAdapter = MATRIX_SOLS_API_VERSION === "v2"
   ? require("../vendors/matrixSols.v2.adapter")
@@ -74,10 +77,10 @@ const purchaseSPU = async (
       { gatewayResponse, orderId }
     );
 
-    // Check order status after 15 seconds
-    setTimeout(() => {
-      checkMatrixSolsOrderStatus(orderId);
-    }, 15000);
+    // Kick off status reconciliation polling (webhooks are unreliable).
+    // First poll runs after MATRIX_SOLS_RECONCILE_DELAYS[0] seconds; the worker
+    // reschedules subsequent polls until a terminal state or the schedule ends.
+    await scheduleReconcileJob(transactionId, orderId, 0);
 
     return {
       transactionId,
@@ -607,6 +610,91 @@ async function checkMatrixSolsOrderStatus(orderId) {
   }
 }
 
+/**
+ * Enqueue the next reconciliation poll for a transaction.
+ * @param {string} transactionId
+ * @param {string} orderId - Matrix Sols order ID
+ * @param {number} attempt - Zero-based attempt index into MATRIX_SOLS_RECONCILE_DELAYS
+ */
+async function scheduleReconcileJob(transactionId, orderId, attempt) {
+  const delaySeconds = MATRIX_SOLS_RECONCILE_DELAYS[attempt];
+  if (delaySeconds === undefined) {
+    logger.info(
+      `Reconcile schedule exhausted for transaction ${transactionId} (attempt ${attempt}); giving up`
+    );
+    return;
+  }
+
+  await queueManager.addJob(
+    "reconcile-order-status",
+    { transactionId, orderId, attempt },
+    {
+      delay: delaySeconds * 1000,
+      idempotencyKey: `reconcile-order-status:${transactionId}:${attempt}`,
+    }
+  );
+
+  logger.info(
+    `Scheduled reconcile poll for transaction ${transactionId}, attempt ${attempt}, in ${delaySeconds}s`
+  );
+}
+
+/**
+ * Reconcile one poll for a transaction. Called by the queue worker.
+ * Loads the transaction, checks whether it is already resolved, polls the
+ * status API, and either processes a terminal result or schedules the next poll.
+ * @param {string} transactionId
+ * @param {string} orderId
+ * @param {number} attempt - The attempt index this job represents
+ */
+async function reconcileOrderStatus(transactionId, orderId, attempt) {
+  const transaction = await db.findOne("transactions", { transactionId });
+  if (!transaction) {
+    logger.error(`Reconcile: transaction not found ${transactionId}; stopping`);
+    return;
+  }
+
+  // Stop if payment is already resolved (webhook or an earlier poll settled it).
+  // Only PENDING keeps polling; any other status means the payment is resolved.
+  if (transaction.status !== PURCHASE_STATUS.PENDING) {
+    logger.info(
+      `Reconcile: transaction ${transactionId} already resolved (${transaction.status}); stopping`
+    );
+    return;
+  }
+
+  const orderStatus = await matrixSolsAdapter.checkOrderStatus(orderId);
+
+  // Poll call failed (network/API error) — treat as non-terminal, keep polling.
+  if (!orderStatus.success) {
+    logger.warn(
+      `Reconcile: status check failed for ${transactionId} (${orderStatus.error}); rescheduling`
+    );
+    return await scheduleReconcileJob(transactionId, orderId, attempt + 1);
+  }
+
+  const apiStatus = orderStatus.status;
+  const isTerminal =
+    MATRIX_SOLS_TERMINAL_SUCCESS.includes(apiStatus) ||
+    MATRIX_SOLS_TERMINAL_FAILURE.includes(apiStatus);
+
+  if (isTerminal) {
+    logger.info(
+      `Reconcile: terminal status "${apiStatus}" for ${transactionId}; processing`
+    );
+    return await processMatrixSolsWebhook(
+      { "x-signature": "check_upi_order_status" },
+      orderStatus.rawResponse?.data
+    );
+  }
+
+  // Non-terminal (Pending/Queue) — schedule the next poll without touching status.
+  logger.info(
+    `Reconcile: non-terminal status "${apiStatus}" for ${transactionId}; rescheduling`
+  );
+  return await scheduleReconcileJob(transactionId, orderId, attempt + 1);
+}
+
 async function updateTransactionWithStage(
   transactionId,
   status,
@@ -690,5 +778,6 @@ module.exports = {
   processGameItemPurchase,
   getTransactionStatus,
   checkMatrixSolsOrderStatus,
+  reconcileOrderStatus,
   updateTransactionWithStage,
 };

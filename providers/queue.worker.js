@@ -3,7 +3,7 @@ const logger = require("../utils/logger");
 const { PURCHASE_STATUS } = require(".././utils/constants");
 
 const { queue } = require("./queue.manager");
-const { processGameItemPurchase } = require("../services/paymentService");
+const { processGameItemPurchase, reconcileOrderStatus } = require("../services/paymentService");
 // Test queue connection first
 queue
   .isReady()
@@ -39,6 +39,19 @@ queue.process("game-item-purchase", async (job) => {
   logger.info(
     `Job ${job.id} completed successfully for transaction ${transactionId}`
   );
+  return;
+});
+
+// Process order-status reconciliation polls
+queue.process("reconcile-order-status", async (job) => {
+  const { transactionId, orderId, attempt } = job.data;
+  logger.info(
+    `Processing reconcile job ${job.id} for transaction ${transactionId}, attempt ${attempt}`
+  );
+
+  await reconcileOrderStatus(transactionId, orderId, attempt);
+
+  logger.info(`Reconcile job ${job.id} completed for transaction ${transactionId}`);
   return;
 });
 
