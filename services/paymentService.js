@@ -600,7 +600,7 @@ async function checkMatrixSolsOrderStatus(orderId) {
       throw createHttpError(502, `Failed to check order status: ${orderStatus.error}`);
     }
 
-    return await processMatrixSolsWebhook({ "x-signature": "check_upi_order_status" }, orderStatus)
+    return await processMatrixSolsWebhook({ "x-signature": "check_upi_order_status" }, orderStatus.rawResponse?.data)
   } catch (error) {
     logger.error(`Failed to check Matrix Sols order status: ${error.message}`);
     //throw error;
